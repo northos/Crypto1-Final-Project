@@ -18,7 +18,7 @@ int main(int argc, char* argv[])
 		printf("Usage: atm proxy-port\n");
 		return -1;
 	}
-	
+
 	//socket setup
 	unsigned short proxport = atoi(argv[1]);
 	int sock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -40,7 +40,7 @@ int main(int argc, char* argv[])
 		printf("fail to connect to proxy\n");
 		return -1;
 	}
-	
+
 	//input loop
 	char buf[80];
 	while(1)
@@ -48,16 +48,32 @@ int main(int argc, char* argv[])
 		printf("atm> ");
 		fgets(buf, 79, stdin);
 		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
-		
+
 		//TODO: your input parsing code has to put data here
 		char packet[1024];
 		int length = 1;
-		
+
 		//input parsing
+		//logout
 		if(!strcmp(buf, "logout"))
-			break;
-		//TODO: other commands
-		
+		  break;
+		//login [username]
+		if(!strncmp(buf, "login", 5)){
+		  // TODO: login code
+		}
+		//balance
+		if(!strcmp(buf, "balance")){
+		  // TODO: balance code
+		}
+		//withdraw [amount]
+		if(!strncmp(buf, "withdraw", 8)){
+		  // TODO: withdraw code
+		}
+		//transfer [amount] [username]
+		if(!strncmp(buf, "transfer", 8)){
+		  // TODO: transfer code
+		}
+
 		//send the packet through the proxy to the bank
 		if(sizeof(int) != send(sock, &length, sizeof(int), 0))
 		{
@@ -69,7 +85,7 @@ int main(int argc, char* argv[])
 			printf("fail to send packet\n");
 			break;
 		}
-		
+
 		//TODO: do something with response packet
 		if(sizeof(int) != recv(sock, &length, sizeof(int), 0))
 		{
@@ -83,11 +99,11 @@ int main(int argc, char* argv[])
 		}
 		if(length != recv(sock, packet, length, 0))
 		{
-			printf("fail to read packet\n");
+		        printf("fail to read packet\n");
 			break;
 		}
 	}
-	
+
 	//cleanup
 	close(sock);
 	return 0;

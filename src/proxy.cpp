@@ -64,13 +64,13 @@ int main(int argc, char* argv[])
 			continue;
 			
 		pthread_t thread;
-		pthread_create(&thread, NULL, client_thread, (void*)csock);
+		pthread_create(&thread, NULL, client_thread, (void*)(&csock));
 	}
 }
 
 void* client_thread(void* arg)
 {
-	int csock = (int)arg;
+	int csock = *(int*)arg;
 	
 	printf("[proxy] client ID #%d connected\n", csock);
 	
