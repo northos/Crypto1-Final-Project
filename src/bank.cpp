@@ -145,5 +145,15 @@ void* console_thread(void* arg)
 		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
 		
 		//TODO: your input parsing code has to go here
+		//deposit
+		if(!strcmp(buf, "deposit")){
+		  // TODO: deposit code
+		  //get user
+		  //add balance
+		}
+		//balance
+		if(!strcmp(buf, "balance")){
+		  // TODO: balance code
+		}
 	}
 }
