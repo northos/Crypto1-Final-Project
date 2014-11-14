@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 
 int main(int argc, char* argv[])
 {
@@ -52,27 +53,74 @@ int main(int argc, char* argv[])
 		//TODO: your input parsing code has to put data here
 		char packet[1024];
 		int length = 1;
+		std::string user = "";  // current logged-in user
 
 		//input parsing
 		//logout
-		if(!strcmp(buf, "logout"))
+		if(!strcmp(buf, "logout")){
+		  user = "";
 		  break;
+		}
 		//login [username]
-		if(!strncmp(buf, "login", 5)){
+		else if(!strncmp(buf, "login", 5)){
+		  // ignore if already logged in
+		  if(user != ""){
+		    printf("%s already logged in.", user.c_str());
+		    continue;
+		  }
+
 		  // TODO: login code
+		  // 3-strike lockout
+		  for(unsigned int i = 0; i < 3; ++i){
+		    printf("Please enter PIN:");
+		    // TODO: check PIN against .card file
+		    if(false/*incorrect PIN*/){
+		      printf("Incorrect. Try again.");
+		    }
+		    // login new user
+		    else{
+		      //strcpy(user, buf[6]);
+		      printf("%s", user.c_str());
+		    }
+		  }
+		  continue;
 		}
-		//balance
-		if(!strcmp(buf, "balance")){
-		  // TODO: balance code
+
+		// balance, withdraw, or transfer
+		// sends packet to bank with the username and command
+		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8)){
+		  strcpy(packet, user.c_str());
+		  strcat(packet, " ");
+		  strcat(packet, buf);
+		  length = user.length() + strlen(buf) + 1;
+		  packet[length - 1] = '\0';
 		}
-		//withdraw [amount]
-		if(!strncmp(buf, "withdraw", 8)){
-		  // TODO: withdraw code
+		/*// withdraw [amount]
+		// sends packet to bank with "withdraw [username] [amount]"
+		else if(!strncmp(buf, "withdraw", 8)){
+		  strcpy(packet, "withdraw ");
+		  strcat(packet, user.c_str());
+		  strcat(packet, " ");
+		  strcat(packet, buf[9]);
+		  length = user.length() + strlen(buf) + 1;
+		  packet[length - 1] = '\0';
 		}
-		//transfer [amount] [username]
-		if(!strncmp(buf, "transfer", 8)){
-		  // TODO: transfer code
-		}
+		// transfer [amount] [destname]
+		// sends packet to bank with "transfer [username] [amount] [destname]"
+		else if(!strncmp(buf, "transfer", 8)){
+		  char* token = strtok(buf, " ");
+		  strcpy(packet, token);
+		  strcat(packet, " ");
+		  strcat(packet, user.c_str());
+		  strcat(packet, " ");
+		  token = strtok(NULL, " ");
+		  strcat(packet, token);
+		  strcat(packet, " ");
+		  token = strtok(NULL, " ");
+		  strcat(packet, " ");
+		  length = user.length() + strlen(buf) + 1;
+		  packet[length - 1] = '\0';
+		  }*/
 
 		//send the packet through the proxy to the bank
 		if(sizeof(int) != send(sock, &length, sizeof(int), 0))
