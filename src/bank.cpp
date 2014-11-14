@@ -12,6 +12,12 @@
 #include <pthread.h>
 #include <string.h>
 
+#include <map>
+#include <iostream>
+
+ /*string is USERNAME, const int is PIN, int is BALANCE. */
+std::map<std::pair<const std::string , const int> , int> accounts;
+
 void* client_thread(void* arg);
 void* console_thread(void* arg);
 
@@ -27,7 +33,7 @@ int main(int argc, char* argv[])
 	
 	//socket setup
 	int lsock = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if(!lsock)
+	if(!lsock || lsock < 0)
 	{
 		printf("fail to create socket\n");
 		return -1;
@@ -52,6 +58,16 @@ int main(int argc, char* argv[])
 		printf("failed to listen on socket\n");
 		return -1;
 	}
+	
+	//Create initial bank accounts for Alice, Bob, and Eve
+	std::pair<const std::string,const int> tmpuser1 ("Alice",123456);
+	accounts.insert ( std::pair< std::pair<const std::string, const int>,int>(tmpuser1,100) );
+	
+	std::pair<const std::string,const int> tmpuser2 ("Bob",654321);
+	accounts.insert ( std::pair< std::pair<const std::string, const int>,int>(tmpuser2,50) );
+	
+	std::pair<const std::string,const int> tmpuser3 ("Eve",246810);
+	accounts.insert ( std::pair< std::pair<const std::string, const int>,int>(tmpuser3,0) );
 	
 	pthread_t cthread;
 	pthread_create(&cthread, NULL, console_thread, NULL);
