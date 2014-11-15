@@ -15,8 +15,9 @@
 #include <map>
 #include <iostream>
 
- /*string is USERNAME, const int is PIN, int is BALANCE. */
-std::map<std::pair<const std::string , const int> , int> accounts;
+ /*string is USERNAME, int is BALANCE. */
+ /* The PINS are no longer stored in the bank, as only the atm needs theml. Now the key is just the username, much simpler*/
+std::map<const std::string , int> accounts;
 
 void* client_thread(void* arg);
 void* console_thread(void* arg);
@@ -60,14 +61,9 @@ int main(int argc, char* argv[])
 	}
 	
 	//Create initial bank accounts for Alice, Bob, and Eve
-	std::pair<const std::string,const int> tmpuser1 ("Alice",123456);
-	accounts.insert ( std::pair< std::pair<const std::string, const int>,int>(tmpuser1,100) );
-	
-	std::pair<const std::string,const int> tmpuser2 ("Bob",654321);
-	accounts.insert ( std::pair< std::pair<const std::string, const int>,int>(tmpuser2,50) );
-	
-	std::pair<const std::string,const int> tmpuser3 ("Eve",246810);
-	accounts.insert ( std::pair< std::pair<const std::string, const int>,int>(tmpuser3,0) );
+	accounts.insert ( std::pair<const std::string, int>("Alice",100) );
+	accounts.insert ( std::pair<const std::string, int>("Bob",50) );
+	accounts.insert ( std::pair<const std::string, int>("Eve",0) );
 	
 	pthread_t cthread;
 	pthread_create(&cthread, NULL, console_thread, NULL);
@@ -95,6 +91,13 @@ void* client_thread(void* arg)
 	//input loop
 	int length;
 	char packet[1024];
+	const char *tok = " ";
+	char* token;
+	char* username;
+	int amount;
+	std::map<const std::string , int>::iterator itr;
+	std::map<const std::string , int>::iterator transfer_itr;
+	char* transfer_username;
 	while(1)
 	{
 		//read the packet from the ATM
@@ -111,11 +114,79 @@ void* client_thread(void* arg)
 			break;
 		}
 		
-		//TODO: process packet data
+		//process packet data
+    		token = strtok(packet, tok);
+    		username = token;
+		//verify username exists
+    		itr = accounts.find(username);
+    		if(itr == accounts.end()){
+    			printf("User %s does not exist!\n", username);
+    			break;
+    		}
+    		
+    		token = strtok(NULL, tok);
+    		
+		if(!strcmp(token, "balance")){
+			char* holder;
+			
+			//TODO: dont use itoa, change method of conversion
+			//itoa(itr->second,holder,10); 
+			
+			strcpy(packet, holder);
+			length = strlen(holder) + 1;
+			packet[length - 1] = '\0';
+		}
 		
-		//TODO: put new data in packet
+		else if(!strcmp(token, "withdraw")){
+			token = strtok(NULL, tok);
+			amount = atoi(token);
+			if(amount > 0 && itr->second >=amount){
+				itr->second-=amount;
+				strcpy(packet, "Confirmed");
+				length = strlen("Confirmed") + 1;
+				packet[length - 1] = '\0';
+			}
+			else{
+				strcpy(packet, "Denied");
+				length = strlen("Denied") + 1;
+				packet[length - 1] = '\0';
+			}
+		}
+		
+		else if(!strcmp(token, "transfer")){
+			token = strtok(NULL, tok);
+			amount = atoi(token);
+			token = strtok(NULL, tok);
+			transfer_username = token;
+			
+			transfer_itr = accounts.find(transfer_username);
+    			if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
+				itr->second-=amount;
+				transfer_itr->second+=amount;
+				strcpy(packet, "Confirmed");
+				length = strlen("Confirmed") + 1;
+				packet[length - 1] = '\0';
+	    		}
+	    		else{
+				strcpy(packet, "Denied");
+				length = strlen("Denied") + 1;
+				packet[length - 1] = '\0';
+	    		}
+		}
+		
+		else{
+			strcpy(packet, "Invalid Command");
+			length = strlen("Invalid Command") + 1;
+			packet[length - 1] = '\0';
+		}
 		
 		//send the new packet back to the client
+		/*TODO: need padding on packet so attacker cant see length
+		otherwise he can easily know magnitude of balance, or whether request was confimed or denied. */
+		/*also, maybe confimed/denied messages should be more complex, to avoid being easily faked/swapped.
+		right now, any request by any user will return identical confimed/denied messages, easy to send 
+		wrong message back to atm to ex. withdraw nmoney when you dont actually have enough.*/
+		
 		if(sizeof(int) != send(csock, &length, sizeof(int), 0))
 		{
 			printf("[bank] fail to send packet length\n");
@@ -138,6 +209,8 @@ void* client_thread(void* arg)
 void* console_thread(void* arg)
 {
 	char buf[80];
+	const char *tok = " ";
+	char* token;
 	while(1)
 	{
 		printf("bank> ");
@@ -145,14 +218,17 @@ void* console_thread(void* arg)
 		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
 		
 		//TODO: your input parsing code has to go here
+
+		token = strtok(buf, tok);
+		
 		//deposit
-		if(!strcmp(buf, "deposit")){
+		if(!strcmp(token, "deposit")){
 		  // TODO: deposit code
 		  //get user
 		  //add balance
 		}
 		//balance
-		if(!strcmp(buf, "balance")){
+		if(!strcmp(token, "balance")){
 		  // TODO: balance code
 		}
 	}
