@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 	if(0 != connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)))
 	{
 		printf("fail to connect to proxy\n");
-		return -1;
+		//return -1;
 	}
 
 	//input loop
@@ -63,29 +63,60 @@ int main(int argc, char* argv[])
 		}
 		//login [username]
 		else if(!strncmp(buf, "login", 5)){
-		  // ignore if already logged in
-		  if(user != ""){
-		    printf("%s already logged in.", user.c_str());
-		    continue;
-		  }
-
-		  // TODO: login code
-		  // 3-strike lockout
-		  for(unsigned int i = 0; i < 3; ++i){
-		    printf("Please enter PIN:");
-		    // TODO: check PIN against .card file
-		    if(false/*incorrect PIN*/){
-		      printf("Incorrect. Try again.");
+		    // ignore if already logged in
+		    if(user != ""){
+		      printf("\n%s already logged in.\n", user.c_str());
+		      continue;
 		    }
-		    // login new user
-		    else{
-		      //strcpy(user, buf[6]);
-		      printf("%s", user.c_str());
-		    }
-		  }
-		  continue;
-		}
-
+                    
+                    char username[80];
+                    char card_filename[80];
+                    strncpy(username, buf + 6, 74);
+                    strncpy(card_filename, buf + 6, 74);
+                    strncpy(card_filename + strlen(username), ".card\0", 6);
+                    
+                    FILE *card = fopen(card_filename, "r");
+                    
+                    if (card == NULL)
+                    {
+                        printf("\nUser does not exist\n");
+                        continue;
+                    }
+                    
+                    // Fetching pin from card
+                    unsigned int pin;
+                    fread(&pin, sizeof(unsigned int), 1, card);
+                    fclose(card);
+                    
+printf("%d\n", pin);
+                    unsigned char valid_pin = 0;
+                    
+                    for (int i = 3; i > 0; --i)
+                    {
+                        printf("\nPlease enter your pin: ");
+                        fgets(buf, 79, stdin);
+                        buf[strlen(buf) - 1] = '\0';
+                        unsigned int pin_entry = atoi(buf);
+                        
+                        if (pin_entry == pin)
+                        {
+                            valid_pin = 1;
+                            break;
+                        }
+                        printf("\nIncorrect pin, please try again. (%d tries remaining)", i-1);
+                    }
+                    
+                    if (valid_pin)
+                    {
+                        printf("\nEstablishing connection\n");
+                    }
+                    else
+                    {
+			user = "";
+                        printf("\nAccess denied\n");
+                    }
+                }
+                  
 		// balance, withdraw, or transfer
 		// sends packet to bank with the username and command
 		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8)){
