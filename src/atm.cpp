@@ -44,6 +44,7 @@ int main(int argc, char* argv[])
 
 	//input loop
 	char buf[80];
+	std::string user = "";  // current logged-in user
 	while(1)
 	{
 		printf("atm> ");
@@ -53,7 +54,6 @@ int main(int argc, char* argv[])
 		//TODO: your input parsing code has to put data here
 		char packet[1024];
 		int length = 1;
-		std::string user = "";  // current logged-in user
 
 		//input parsing
 		//logout
