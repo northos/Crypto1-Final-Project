@@ -108,6 +108,7 @@ printf("%d\n", pin);
                     
                     if (valid_pin)
                     {
+                        user = username;
                         printf("\nEstablishing connection\n");
                     }
                     else
