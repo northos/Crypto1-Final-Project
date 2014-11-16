@@ -120,8 +120,9 @@ void* client_thread(void* arg)
 		//verify username exists
     		itr = accounts.find(username);
     		if(itr == accounts.end()){
-    			printf("User %s does not exist!\n", username);
-    			break;
+    			strcpy(packet, "Invalid Request");
+			length = strlen("Invalid Request") + 1;
+			packet[length - 1] = '\0';
     		}
     		
     		token = strtok(NULL, tok);
@@ -175,8 +176,8 @@ void* client_thread(void* arg)
 		}
 		
 		else{
-			strcpy(packet, "Invalid Command");
-			length = strlen("Invalid Command") + 1;
+			strcpy(packet, "Invalid Request");
+			length = strlen("Invalid Request") + 1;
 			packet[length - 1] = '\0';
 		}
 		
@@ -197,7 +198,15 @@ void* client_thread(void* arg)
 			printf("[bank] fail to send packet\n");
 			break;
 		}
-
+		
+		/*an invalid request shouldnt be possible, and will close the connection. 
+		However, it needs to first communicate with the atm that the request was invalid,
+		otherwise the atm waits forever for a response from the bank. Here, after sending
+		the message, the connection is terminated*/
+		if(!strncmp(packet, "Invalid Request", 15)){
+			printf("client ID #%d sent invalid request.\n", csock);
+			break;
+		}
 	}
 
 	printf("[bank] client ID #%d disconnected\n", csock);
