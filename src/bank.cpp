@@ -220,6 +220,7 @@ void* console_thread(void* arg)
 	char buf[80];
 	const char *tok = " ";
 	char* token;
+	char* username;
 	while(1)
 	{
 		printf("bank> ");
@@ -229,16 +230,28 @@ void* console_thread(void* arg)
 		//TODO: your input parsing code has to go here
 
 		token = strtok(buf, tok);
-		
+		username = strtok(NULL, tok);
 		//deposit
 		if(!strcmp(token, "deposit")){
-		  // TODO: deposit code
-		  //get user
-		  //add balance
+			int amount = atoi(strtok(NULL, tok));
+			//get user
+			std::map<const std::string , int>::iterator itr = accounts.find(username);
+			if (itr == accounts.end()) {
+				printf("User: %s does not exist", username);
+				continue;
+			}
+			//add balance
+			itr->second += amount;
+			printf("Added $%d to user %s", amount, username);
 		}
 		//balance
 		if(!strcmp(token, "balance")){
-		  // TODO: balance code
+			std::map<const std::string , int>::iterator itr = accounts.find(username);
+			if (itr == accounts.end()) {
+				printf("User: %s does not exist", username);
+				continue;
+			}
+			printf("Balance: %d", itr->second);
 		}
 	}
 }
