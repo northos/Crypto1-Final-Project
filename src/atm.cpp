@@ -39,7 +39,7 @@ int main(int argc, char* argv[])
 	if(0 != connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)))
 	{
 		printf("fail to connect to proxy\n");
-		//return -1;
+		return -1;
 	}
 
 	//input loop
@@ -109,7 +109,7 @@ printf("%d\n", pin);
                     if (valid_pin)
                     {
                         user = username;
-                        printf("\nEstablishing connection\n");
+                        printf("\nEstablishing session\n");
                     }
                     else
                     {
