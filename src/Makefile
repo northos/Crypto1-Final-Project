@@ -3,7 +3,9 @@ OUTDIR=../bin/
 CFLAGS=-lpthread
 
 all: bank atm proxy
-	cp user.card $(OUTDIR)
+	cp Alice.card $(OUTDIR)
+	cp Bob.card $(OUTDIR)
+	cp Eve.card $(OUTDIR)
 
 bank: bank.cpp
 	$(CC) bank.cpp -o $(OUTDIR)bank $(CFLAGS)

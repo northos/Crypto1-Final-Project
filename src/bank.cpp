@@ -114,9 +114,15 @@ void* client_thread(void* arg)
 			break;
 		}
 		
+		printf(packet);
+		printf("\n");
 		//process packet data
     		token = strtok(packet, tok);
     		username = token;
+		printf(token);
+		printf("\n");
+		printf(username);
+		printf("\n");
 		//verify username exists
     		itr = accounts.find(username);
     		if(itr == accounts.end()){
@@ -126,15 +132,15 @@ void* client_thread(void* arg)
     		}
     		
     		token = strtok(NULL, tok);
+		printf(token);
+		printf("\n");
     		
 		if(!strcmp(token, "balance")){
 			char* holder;
-			
-			//TODO: dont use itoa, change method of conversion
-			//itoa(itr->second,holder,10); 
-			
-			strcpy(packet, holder);
-			length = strlen(holder) + 1;
+			char balance[80];
+			snprintf(balance, 80,"%d", accounts[username]);
+			strncpy(packet, balance, 80);
+			length = strlen(packet) + 1;
 			packet[length - 1] = '\0';
 		}
 		
@@ -188,6 +194,8 @@ void* client_thread(void* arg)
 		right now, any request by any user will return identical confimed/denied messages, easy to send 
 		wrong message back to atm to ex. withdraw nmoney when you dont actually have enough.*/
 		
+		printf(packet);
+		printf("\t%d\n", length);
 		if(sizeof(int) != send(csock, &length, sizeof(int), 0))
 		{
 			printf("[bank] fail to send packet length\n");
@@ -204,6 +212,8 @@ void* client_thread(void* arg)
 		otherwise the atm waits forever for a response from the bank. Here, after sending
 		the message, the connection is terminated*/
 		if(!strncmp(packet, "Invalid Request", 15)){
+			printf(packet); 
+			printf("\n");
 			printf("client ID #%d sent invalid request.\n", csock);
 			break;
 		}

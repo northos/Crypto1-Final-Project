@@ -88,6 +88,7 @@ int main(int argc, char* argv[])
                     fread(&pin, sizeof(unsigned int), 1, card);
                     fclose(card);
                     
+// Remove before submission
 printf("%d\n", pin);
                     unsigned char valid_pin = 0;
                     
@@ -110,12 +111,15 @@ printf("%d\n", pin);
                     {
                         user = username;
                         printf("\nEstablishing session\n");
+		  	//strncpy(packet, user.c_str(), 80);
+			//length = strlen(packet);
                     }
                     else
                     {
 			user = "";
                         printf("\nAccess denied\n");
                     }
+		    continue;
                 }
                   
 		// balance, withdraw, or transfer
@@ -124,7 +128,7 @@ printf("%d\n", pin);
 		  strcpy(packet, user.c_str());
 		  strcat(packet, " ");
 		  strcat(packet, buf);
-		  length = user.length() + strlen(buf) + 1;
+		  length = user.length() + strlen(buf) + 2;
 		  packet[length - 1] = '\0';
 		}
 		/*// withdraw [amount]
@@ -182,6 +186,9 @@ printf("%d\n", pin);
 		        printf("fail to read packet\n");
 			break;
 		}
+
+		printf(packet);
+		printf("\n");
 	}
 
 	//cleanup
