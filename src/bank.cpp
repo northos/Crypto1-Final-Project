@@ -11,6 +11,9 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <string.h>
+#include "cryptopp/aes.h"
+#include "cryptopp/osrng.h"
+#include "cryptopp/ccm.h"
 
 #include <map>
 #include <iostream>
@@ -94,10 +97,22 @@ void* client_thread(void* arg)
 	const char *tok = " ";
 	char* token;
 	char* username;
+	std::string user = "";
 	int amount;
 	std::map<const std::string , int>::iterator itr;
 	std::map<const std::string , int>::iterator transfer_itr;
+	std::string plaintext, ciphertext;
 	char* transfer_username;
+	char session_active = 0;
+
+	CryptoPP::AutoSeededRandomPool rng;
+	byte key[CryptoPP::AES::DEFAULT_KEYLENGTH];
+	byte iv[CryptoPP::AES::DEFAULT_KEYLENGTH];
+
+	CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption aes_decrypt;
+	CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption aes_encrypt;
+
+
 	while(1)
 	{
 		//read the packet from the ATM
@@ -108,83 +123,173 @@ void* client_thread(void* arg)
 			printf("packet too long\n");
 			break;
 		}
+
 		if(length != recv(csock, packet, length, 0))
 		{
 			printf("[bank] fail to read packet\n");
 			break;
 		}
-		
-		printf(packet);
-		printf("\n");
-		//process packet data
-    		token = strtok(packet, tok);
-    		username = token;
-		printf(token);
-		printf("\n");
-		printf(username);
-		printf("\n");
-		//verify username exists
-    		itr = accounts.find(username);
-    		if(itr == accounts.end()){
-    			strcpy(packet, "Invalid Request");
-			length = strlen("Invalid Request") + 1;
-			packet[length - 1] = '\0';
-    		}
-    		
-    		token = strtok(NULL, tok);
-		printf(token);
-		printf("\n");
-    		
-		if(!strcmp(token, "balance")){
-			char* holder;
-			char balance[80];
-			snprintf(balance, 80,"%d", accounts[username]);
-			strncpy(packet, balance, 80);
-			length = strlen(packet) + 1;
-			packet[length - 1] = '\0';
-		}
-		
-		else if(!strcmp(token, "withdraw")){
-			token = strtok(NULL, tok);
-			amount = atoi(token);
-			if(amount > 0 && itr->second >=amount){
-				itr->second-=amount;
-				strcpy(packet, "Confirmed");
-				length = strlen("Confirmed") + 1;
-				packet[length - 1] = '\0';
+
+
+		if (!session_active)
+		{
+    			token = strtok(packet, tok);
+
+			if(!strcmp(token, "open"))
+			{
+				// Generate session key and IV
+				rng.GenerateBlock(key, sizeof(key));
+				rng.GenerateBlock(iv, sizeof(iv));
+
+				// Setup aes cipher for encryption and decryption
+				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
+				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
+
+				// Verify username exists
+    				token = strtok(NULL, tok);
+				username = token;
+				user = token;
+
+    				itr = accounts.find(username);
+    				if(itr == accounts.end()){
+    					strcpy(packet, "Invalid Request");
+					length = strlen("Invalid Request") + 1;
+					packet[length - 1] = '\0';
+    				}
+				
+				// DEBUG
+				//puts("KEY:");
+				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+				//{
+				//	printf("%02x ", key[i]);
+				//}
+				//puts("");
+				//puts("IV:");
+				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+				//{
+				//	printf("%02x ", iv[i]);
+				//}
+				//puts("");
+
+				// TODO: Key passed in plaintext, replace with public key algorithm
+				memcpy(packet, key, 16);
+				memcpy(packet+16, iv, 16);
+				memcpy(packet+32, "\0", 1);
+				length = 32;
 			}
-			else{
-				strcpy(packet, "Denied");
-				length = strlen("Denied") + 1;
-				packet[length - 1] = '\0';
-			}
+
+			session_active = 1;
 		}
-		
-		else if(!strcmp(token, "transfer")){
-			token = strtok(NULL, tok);
-			amount = atoi(token);
-			token = strtok(NULL, tok);
-			transfer_username = token;
+		else
+		{
+			// DEBUG
+			//puts("CIPHERTEXT:");
+			//for (int i = 0; i < length; i++)
+			//{
+			//	printf("%02x ", (unsigned char)(packet[i]));
+			//}
+			//printf("%d\n", length);
+			//puts("");
+			//ciphertext = packet;
+
+			ciphertext.assign(packet, length);
+			plaintext = "";
+
+			// Decrypt packet
+			CryptoPP::StringSource( ciphertext, true,
+				new CryptoPP::StreamTransformationFilter (aes_decrypt,
+					new CryptoPP::StringSink( plaintext )
+				)
+			);
 			
-			transfer_itr = accounts.find(transfer_username);
-    			if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
-				itr->second-=amount;
-				transfer_itr->second+=amount;
-				strcpy(packet, "Confirmed");
-				length = strlen("Confirmed") + 1;
+			strncpy (packet, plaintext.c_str(), 80);
+			length = strlen(packet);
+
+    			token = strtok(packet, tok);
+			username = token;
+    			token = strtok(NULL, tok);
+
+			if (user != username)
+			{
+				strncpy(packet, "Invalid Request", 80);
+			}
+    		
+			if(!strcmp(token, "balance")){
+				char* holder;
+				char balance[80];
+				snprintf(balance, 80,"%d", accounts[username]);
+				strncpy(packet, balance, 80);
+				length = strlen(packet) + 1;
 				packet[length - 1] = '\0';
-	    		}
-	    		else{
-				strcpy(packet, "Denied");
-				length = strlen("Denied") + 1;
+			}
+			
+			else if(!strcmp(token, "withdraw")){
+				token = strtok(NULL, tok);
+				amount = atoi(token);
+				if(amount > 0 && itr->second >=amount){
+					itr->second-=amount;
+					strcpy(packet, "Confirmed");
+					length = strlen("Confirmed") + 1;
+					packet[length - 1] = '\0';
+				}
+				else{
+					strcpy(packet, "Denied");
+					length = strlen("Denied") + 1;
+					packet[length - 1] = '\0';
+				}
+			}
+			
+			else if(!strcmp(token, "transfer")){
+				token = strtok(NULL, tok);
+				amount = atoi(token);
+				token = strtok(NULL, tok);
+				transfer_username = token;
+				
+				transfer_itr = accounts.find(transfer_username);
+    				if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
+					itr->second-=amount;
+					transfer_itr->second+=amount;
+					strcpy(packet, "Confirmed");
+					length = strlen("Confirmed") + 1;
+					packet[length - 1] = '\0';
+	    			}
+	    			else{
+					strcpy(packet, "Denied");
+					length = strlen("Denied") + 1;
+					packet[length - 1] = '\0';
+	    			}
+			}
+			else if(!strcmp(token, "logout")){
+				session_active = 0;
+				user = "";
+			}
+			
+			else{
+				strcpy(packet, "Invalid Request");
+				length = strlen("Invalid Request") + 1;
 				packet[length - 1] = '\0';
-	    		}
-		}
-		
-		else{
-			strcpy(packet, "Invalid Request");
-			length = strlen("Invalid Request") + 1;
-			packet[length - 1] = '\0';
+			}
+
+			plaintext = packet;
+			ciphertext = "";
+
+			// Encrypt packet
+			CryptoPP::StringSource( plaintext, true,
+				new CryptoPP::StreamTransformationFilter (aes_encrypt,
+					new CryptoPP::StringSink( ciphertext )
+				)
+			);
+			
+			memcpy (packet, ciphertext.c_str(), ciphertext.length());
+			length = ciphertext.length();
+
+			// DEBUG
+			//puts("CIPHERTEXT:");
+			//for (int i = 0; i < length; i++)
+			//{
+			//	printf("%02x ", (unsigned char)(packet[i]));
+			//}
+			//puts("");
 		}
 		
 		//send the new packet back to the client
@@ -194,9 +299,8 @@ void* client_thread(void* arg)
 		right now, any request by any user will return identical confimed/denied messages, easy to send 
 		wrong message back to atm to ex. withdraw nmoney when you dont actually have enough.*/
 		
-		printf(packet);
-		printf("\t%d\n", length);
-		if(sizeof(int) != send(csock, &length, sizeof(int), 0))
+	
+		if(sizeof(int) != send(csock, (void *)&length, sizeof(int), 0))
 		{
 			printf("[bank] fail to send packet length\n");
 			break;
@@ -212,8 +316,6 @@ void* client_thread(void* arg)
 		otherwise the atm waits forever for a response from the bank. Here, after sending
 		the message, the connection is terminated*/
 		if(!strncmp(packet, "Invalid Request", 15)){
-			printf(packet); 
-			printf("\n");
 			printf("client ID #%d sent invalid request.\n", csock);
 			break;
 		}

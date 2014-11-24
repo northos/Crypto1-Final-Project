@@ -115,8 +115,13 @@ void* client_thread(void* arg)
 			break;
 		}
 		
-		printf(packet);
-		printf("\n");
+		// DEBUG
+		//for (int i = 0; i < length; i++)
+		//{
+		//	printf("%02x ", (unsigned char)(packet[i]));
+		//}
+		//puts("");
+		//printf("%d\n", length);
 		//TODO: tamper with packet going from ATM to bank
 		
 		//forward packet to bank
@@ -147,8 +152,6 @@ void* client_thread(void* arg)
 			printf("[proxy] fail to read packet\n");
 			break;
 		}
-		printf(packet);
-		printf("\n");
 		
 		//TODO: tamper with packet going from bank to ATM
 
