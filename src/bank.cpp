@@ -21,6 +21,7 @@
  /*string is USERNAME, int is BALANCE. */
  /* The PINS are no longer stored in the bank, as only the atm needs theml. Now the key is just the username, much simpler*/
 std::map<const std::string , int> accounts;
+std::map<const std::string , pthread_mutex_t> mutexs;
 
 void* client_thread(void* arg);
 void* console_thread(void* arg);
@@ -67,6 +68,9 @@ int main(int argc, char* argv[])
 	accounts.insert ( std::pair<const std::string, int>("Alice",100) );
 	accounts.insert ( std::pair<const std::string, int>("Bob",50) );
 	accounts.insert ( std::pair<const std::string, int>("Eve",0) );
+	accounts.insert ( std::pair<const std::string, int>("Alice",PTHREAD_MUTEX_INITIALIZER) );
+	accounts.insert ( std::pair<const std::string, int>("Bob",PTHREAD_MUTEX_INITIALIZER) );
+	accounts.insert ( std::pair<const std::string, int>("Eve",PTHREAD_MUTEX_INITIALIZER) );
 	
 	pthread_t cthread;
 	pthread_create(&cthread, NULL, console_thread, NULL);
@@ -212,15 +216,15 @@ void* client_thread(void* arg)
 			strncpy (packet, plaintext.c_str(), 80);
 			length = strlen(packet);
 
-    			token = strtok(packet, tok);
+    		token = strtok(packet, tok);
 			username = token;
-    			token = strtok(NULL, tok);
+    		token = strtok(NULL, tok);
 
 			if (user != username)
 			{
 				strncpy(packet, "Invalid Request", 80);
 			}
-    		
+    		pthread_mutex_lock(&(mutexs.find(username)->second));
 			if(!strcmp(token, "balance")){
 				char* holder;
 				char balance[80];
@@ -253,18 +257,18 @@ void* client_thread(void* arg)
 				transfer_username = token;
 				
 				transfer_itr = accounts.find(transfer_username);
-    				if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
+    			if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
 					itr->second-=amount;
 					transfer_itr->second+=amount;
 					strcpy(packet, "Confirmed");
 					length = strlen("Confirmed") + 1;
 					packet[length - 1] = '\0';
-	    			}
-	    			else{
+	    		}
+	    		else{
 					strcpy(packet, "Denied");
 					length = strlen("Denied") + 1;
 					packet[length - 1] = '\0';
-	    			}
+	    		}
 			}
 			else if(!strcmp(token, "logout")){
 				session_active = 0;
@@ -276,6 +280,7 @@ void* client_thread(void* arg)
 				length = strlen("Invalid Request") + 1;
 				packet[length - 1] = '\0';
 			}
+			pthread_mutex_unlock(&(mutexs.find(username)->second));
 
 			plaintext = packet;
 			ciphertext = "";
@@ -346,7 +351,7 @@ void* console_thread(void* arg)
 		fgets(buf, 79, stdin);
 		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
 		
-		//TODO: your input parsing code has to go here
+		
 
 		// Blank Input
 		if (!strcmp(buf, ""))
@@ -368,6 +373,7 @@ void* console_thread(void* arg)
 				printf("User: %s does not exist", username);
 				continue;
 			}
+			pthread_mutex_lock(&(mutexs.find(username)->second));
 			if (amount < 0)
 			{
 				// Deposit is negative
@@ -384,6 +390,7 @@ void* console_thread(void* arg)
 				itr->second += amount;
 				printf("Added $%d to user %s\n", amount, username);
 			}
+			pthread_mutex_unlock(&(mutexs.find(username)->second));
 		}
 		//balance
 		else if(!strcmp(token, "balance")){
