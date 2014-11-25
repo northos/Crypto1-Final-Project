@@ -133,6 +133,8 @@ void* client_thread(void* arg)
 
 		if (!session_active)
 		{
+			puts(packet);
+
     			token = strtok(packet, tok);
 
 			if(!strcmp(token, "open"))
@@ -147,6 +149,11 @@ void* client_thread(void* arg)
 
 				// Verify username exists
     				token = strtok(NULL, tok);
+				
+				if (token != NULL)
+				{
+					continue;
+				}
 				username = token;
 				user = token;
 
@@ -341,8 +348,17 @@ void* console_thread(void* arg)
 		
 		//TODO: your input parsing code has to go here
 
-		token = strtok(buf, tok);
-		username = strtok(NULL, tok);
+		// Blank Input
+		if (!strcmp(buf, ""))
+		{
+			continue;
+		}
+		else
+		{
+			token = strtok(buf, tok);
+			username = strtok(NULL, tok);
+		}
+
 		//deposit
 		if(!strcmp(token, "deposit")){
 			int amount = atoi(strtok(NULL, tok));
@@ -352,18 +368,35 @@ void* console_thread(void* arg)
 				printf("User: %s does not exist", username);
 				continue;
 			}
-			//add balance
-			itr->second += amount;
-			printf("Added $%d to user %s", amount, username);
+			if (amount < 0)
+			{
+				// Deposit is negative
+				puts("Deposit must be a positive value");
+			}
+			else if (amount + itr->second < itr->second)
+			{
+				// Prevents overflow on account balance
+				puts("Cannot deposit amount, maximum account balance will be exceeded");
+			}
+			else
+			{
+				//add balance
+				itr->second += amount;
+				printf("Added $%d to user %s\n", amount, username);
+			}
 		}
 		//balance
-		if(!strcmp(token, "balance")){
+		else if(!strcmp(token, "balance")){
 			std::map<const std::string , int>::iterator itr = accounts.find(username);
 			if (itr == accounts.end()) {
 				printf("User: %s does not exist", username);
 				continue;
 			}
-			printf("Balance: %d", itr->second);
+			printf("Balance: %d\n", itr->second);
+		}
+		else
+		{
+			puts("Invalid Command");
 		}
 	}
 }

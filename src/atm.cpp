@@ -52,8 +52,6 @@ int main(int argc, char* argv[])
 
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption aes_decrypt;
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption aes_encrypt;
-	//CryptoPP::ECB_Mode<CryptoPP::AES>::Decryption aes_decrypt;
-	//CryptoPP::ECB_Mode<CryptoPP::AES>::Encryption aes_encrypt;
 
 	//input loop
 	unsigned char session_active = 0;
