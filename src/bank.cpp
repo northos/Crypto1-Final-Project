@@ -14,6 +14,7 @@
 #include "cryptopp/aes.h"
 #include "cryptopp/osrng.h"
 #include "cryptopp/ccm.h"
+#include "cryptopp/rsa.h"
 
 #include <map>
 #include <iostream>
@@ -116,6 +117,40 @@ void* client_thread(void* arg)
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption aes_decrypt;
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption aes_encrypt;
 
+	CryptoPP::Integer bank_modulus( "0xbbed02f6dbb34c5aa313b9d6e54b3e862e0bd1d8d0d9b608cff72b5439ba40b0\
+					   4c1aab93a17e176cd56ba2626f25f25160f51940c9299347f1adffb22192e20a\
+					   e3b5205a2565b654a123914ada58946be5a16c9e070f90e25996efd8350b76eb\
+					   197decf7aebe8c591ad2f3999ae125f8ad35b2b258b7e4134bf19aa803a8edf0\
+					   533921256607dad00e6ddc3e1b78f4df3ff7918590a59a6cb2aded1a708cffca\
+					   906abbea826f4973dc9d37e74d4e01d1b95f1e7abc425127178a3eb22dc03940\
+					   4ed2bcd574954465c94af3a49ec6237ef8991c51b20ff8a818dba5149afae651\
+					   11211f1a806526e62b3cbb852683f9d04981fddc5d10ed652cbc104cdf8b1be5");
+	CryptoPP::Integer bank_priv_key("0x52e8905dd965b0be933d68938346d7d1c90536eeb67e2aa988ed0b961977d13e\
+					   b829e248a9210a55a973401c5e366360233ef48d85ecb1eb08bdb4925a1b277d\
+					   46577027c534670738082982e7dbc9026cd64681f40e659109683ca32675ffc2\
+					   12c69d4018631fccf53ef300009081b17997b0b81814e49f19f9a61cf28e4ada\
+					   35d45505429661e7dbc6225c0abb94c2e12372f5da871c4bfd54b525b04d27b5\
+					   1605cb592faf9352daee996e0f482934d9796768bb4c3f4be4ceaccfce915fec\
+					   28eb43f8dd09ca3876f11131705aa64342c5a2bfc8fea997ea82c6591f9ba5a3\
+					   ce89b42ae6cf052d42b7451eafda6f22f696734ac716ba33e2c4b6514d0d295b");
+	CryptoPP::Integer bank_pub_key(	"0x11");
+
+	CryptoPP::Integer atm_modulus(	"0xe702c9e39c8deea1f2496b5535acc7839819c7e3b1124d360b4b33141db5632a\
+					   f648c5da27708bd7f5f5f8d8f32e15960c4791d43ec92906a528157398695379\
+					   037a9bfd0c580c276d37257a5c264a633f3fe4e16299177a1c4e54c2afa52103\
+					   04f948853a986c14e6124ac7849c61a17f67666017d3f2e84666c329fff1a85b\
+					   439c7f42dfbdc51e7b020fce5412eb087e1afc3c36c14523a4c714d169eec7f6\
+					   6d42d97688aafbe12151de9fca9e26c91b7c424d02afe2533bfb26b88f850171\
+					   c2629dd4f8268dc7daf7643d59997228c2cf25232f20f0b0d0536b6e92322cd1\
+					   68d66d6708efa17a3747e6c72f1ecd84bfdc4e7979bf2653c4af23a792d2f86b");
+	CryptoPP::Integer atm_pub_key(	"0x11");
+
+	CryptoPP::RSA::PrivateKey privkey;
+	CryptoPP::RSA::PublicKey pubkey;
+	privkey.Initialize(bank_modulus, bank_pub_key, bank_priv_key);
+	pubkey.Initialize(atm_modulus, atm_pub_key);
+	CryptoPP::RSAES_OAEP_SHA_Encryptor rsa_encrypt (pubkey);
+	CryptoPP::RSAES_OAEP_SHA_Decryptor rsa_decrypt (privkey);
 
 	while(1)
 	{
@@ -182,11 +217,29 @@ void* client_thread(void* arg)
 				//}
 				//puts("");
 
-				// TODO: Key passed in plaintext, replace with public key algorithm
 				memcpy(packet, key, 16);
 				memcpy(packet+16, iv, 16);
 				memcpy(packet+32, "\0", 1);
 				length = 32;
+				
+				plaintext.assign(packet, length);
+
+				CryptoPP::StringSource(plaintext, true,
+					new CryptoPP::PK_EncryptorFilter(rng, rsa_encrypt,
+						new CryptoPP::StringSink(ciphertext)
+					)
+				);
+				
+				// DEBUG
+				//puts("Encrypted");
+				//for (int i = 0; i < ciphertext.length(); i++)
+				//{
+				//	printf("%02x ", (unsigned char)ciphertext[i]);
+				//}
+				//puts("");
+				
+				memcpy (packet, ciphertext.c_str(), ciphertext.length());
+				length = ciphertext.length();
 			}
 
 			session_active = 1;
