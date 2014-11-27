@@ -284,7 +284,7 @@ void* client_thread(void* arg)
 				snprintf(balance, 80,"%d", accounts[username]);
 				strncpy(packet, balance, 80);
 				length = strlen(packet) + 1;
-				packet[length - 1] = '\0';
+				packet[length - 1] = ' ';
 			}
 			
 			else if(!strcmp(token, "withdraw")){
@@ -294,12 +294,12 @@ void* client_thread(void* arg)
 					itr->second-=amount;
 					strcpy(packet, "Confirmed");
 					length = strlen("Confirmed") + 1;
-					packet[length - 1] = '\0';
+					packet[length - 1] = ' ';
 				}
 				else{
 					strcpy(packet, "Denied");
 					length = strlen("Denied") + 1;
-					packet[length - 1] = '\0';
+					packet[length - 1] = ' ';
 				}
 			}
 			
@@ -315,12 +315,12 @@ void* client_thread(void* arg)
 					transfer_itr->second+=amount;
 					strcpy(packet, "Confirmed");
 					length = strlen("Confirmed") + 1;
-					packet[length - 1] = '\0';
+					packet[length - 1] = ' ';
 	    		}
 	    		else{
 					strcpy(packet, "Denied");
 					length = strlen("Denied") + 1;
-					packet[length - 1] = '\0';
+					packet[length - 1] = ' ';
 	    		}
 			}
 			else if(!strcmp(token, "logout")){
@@ -331,8 +331,15 @@ void* client_thread(void* arg)
 			else{
 				strcpy(packet, "Invalid Request");
 				length = strlen("Invalid Request") + 1;
-				packet[length - 1] = '\0';
+				packet[length - 1] = ' ';
 			}
+			// padding: adds a space and then 'A's up to 1023 characters plus \0
+			for(unsigned int i = length; i < 1023; ++i){
+			  packet[i] = 'A';
+			}
+			packet[1023] = '\0';
+			length = 1024;
+
 			pthread_mutex_unlock(&(mutexs.find(username)->second));
 
 			plaintext = packet;

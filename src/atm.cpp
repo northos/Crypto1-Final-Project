@@ -184,8 +184,14 @@ printf("%d\n", pin);
 		  strcat(packet, " ");
 		  strcat(packet, buf);
 		  length = user.length() + strlen(buf) + 2;
-		  packet[length - 1] = '\0';
 		}
+
+		// padding: adds a space and then 'A's up to 1023 characters plus \0
+		packet[length - 1] = ' ';
+		for(unsigned int i = length; i < 1023; ++i){
+		  packet[i] = 'A';
+		}
+		packet[1023] = '\0';
 
 		if (session_active)
 		{
