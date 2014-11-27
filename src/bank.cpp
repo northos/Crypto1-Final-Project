@@ -154,7 +154,7 @@ void* client_thread(void* arg)
 				// Verify username exists
     				token = strtok(NULL, tok);
 				
-				if (token != NULL)
+				if (token == NULL)
 				{
 					continue;
 				}
