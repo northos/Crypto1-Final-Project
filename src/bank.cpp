@@ -68,9 +68,9 @@ int main(int argc, char* argv[])
 	accounts.insert ( std::pair<const std::string, int>("Alice",100) );
 	accounts.insert ( std::pair<const std::string, int>("Bob",50) );
 	accounts.insert ( std::pair<const std::string, int>("Eve",0) );
-	accounts.insert ( std::pair<const std::string, int>("Alice",PTHREAD_MUTEX_INITIALIZER) );
-	accounts.insert ( std::pair<const std::string, int>("Bob",PTHREAD_MUTEX_INITIALIZER) );
-	accounts.insert ( std::pair<const std::string, int>("Eve",PTHREAD_MUTEX_INITIALIZER) );
+	mutexs.insert ( std::pair<const std::string, pthread_mutex_t>("Alice",PTHREAD_MUTEX_INITIALIZER) );
+	mutexs.insert ( std::pair<const std::string, pthread_mutex_t>("Bob",PTHREAD_MUTEX_INITIALIZER) );
+	mutexs.insert ( std::pair<const std::string, pthread_mutex_t>("Eve",PTHREAD_MUTEX_INITIALIZER) );
 	
 	pthread_t cthread;
 	pthread_create(&cthread, NULL, console_thread, NULL);
