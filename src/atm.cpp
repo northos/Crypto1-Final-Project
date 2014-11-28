@@ -187,7 +187,6 @@ int main(int argc, char* argv[])
 				printf("\nEstablishing session\n");
 
 				strncpy (packet, "open ", 1024);
-				//strncat (packet, user.c_str(), 1024);
 				length = strlen(packet);
 			}
 			else
@@ -217,6 +216,11 @@ int main(int argc, char* argv[])
 				length = 1;
 				continue;
 			}
+		}
+		else
+		{
+			puts("Invalid command\n");
+			continue;
 		}
 
 		// Attach timestamp
@@ -326,7 +330,7 @@ int main(int argc, char* argv[])
 			long int timestamp = atol(token);
 			time_t now = time(0);
 
-			if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
+			if (now < timestamp || now > timestamp + 5 || timestamp < prevTimestamp)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");
@@ -386,7 +390,8 @@ int main(int argc, char* argv[])
 			token = strtok(NULL, tok);
 			long int timestamp = atol(token);
 			time_t now = time(0);
-			if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
+
+			if (now < timestamp || now > timestamp + 5 || timestamp < prevTimestamp)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");

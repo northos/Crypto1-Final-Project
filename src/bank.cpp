@@ -165,6 +165,7 @@ void* client_thread(void* arg)
 	CryptoPP::SHA256 hash;
 	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
 	byte atm_hash[CryptoPP::SHA256::DIGESTSIZE];
+	long int prevTimestamp;
 
 	while(1)
 	{
@@ -193,7 +194,7 @@ void* client_thread(void* arg)
 				long int timestamp = atol(token);
 				time_t now = time(0);
 			
-				if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
+				if (now < timestamp || now > timestamp + 5 || timestamp < prevTimestamp)
 				{
 					continue;
 				}
@@ -220,6 +221,7 @@ void* client_thread(void* arg)
 				strcat(packet, tmp);
 				length += 1 + strlen(tmp);
 				
+				printf("%d\n", now);
 				// Sign message with bank's private key
 				plaintext.assign(packet, length);
 				signature = "";
@@ -321,7 +323,7 @@ void* client_thread(void* arg)
 			{
 				strncpy(packet, "Invalid_Request", 1024);
 			}
-			else if (now < timestamp || now > timestamp+5 || timestamp <= prevTimestamp)
+			else if (now < timestamp || now > timestamp+5 || timestamp < prevTimestamp)
 			{
 				strcpy(packet, "Denied_Bad_Timestamp");
 				length = strlen(packet);
