@@ -109,7 +109,7 @@ void* client_thread(void* arg)
 	printf("[bank] client ID #%d connected\n", csock);
 	
 	//input loop
-	int length;
+	unsigned int length;
 	char packet[1024];
 	const char *tok = " ";
 	char *token;
@@ -175,6 +175,7 @@ void* client_thread(void* arg)
 	CryptoPP::SHA256 hash;
 	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
 	byte atm_hash[CryptoPP::SHA256::DIGESTSIZE];
+	long int prevTimestamp;
 
 	while(1)
 	{
@@ -193,17 +194,21 @@ void* client_thread(void* arg)
 			break;
 		}
 
+		// ATM hasn't tried to log in yet
 		if (!key_generated)
 		{
     			token = strtok(packet, tok);
 
+			// Open a session
 			if(!strcmp(token, "open"))
 			{
+				// Get current time
 				token = strtok(NULL, tok);
 				long int timestamp = atol(token);
 				time_t now = time(0);
 			
-				if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
+				// Discard old or oddly timed packets
+				if (now < timestamp || now > timestamp + 5 || timestamp < prevTimestamp)
 				{
 					continue;
 				}
@@ -217,6 +222,7 @@ void* client_thread(void* arg)
 				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
 				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
 
+				// Copy key and IV into packet
 				memcpy(packet, key, 16);
 				memcpy(packet+16, iv, 16);
 				memcpy(packet+32, "\0", 1);
@@ -289,7 +295,7 @@ void* client_thread(void* arg)
 			}
 			else
 			{
-				strncpy(packet, plaintext.c_str(), 1024);
+				strncpy(packet, plaintext.c_str(), 1023);
 			}
 			
 			char *message[10];
@@ -304,45 +310,48 @@ void* client_thread(void* arg)
 				message[num_args] = token;
 				token = strtok(NULL, tok);
 			}
-			num_args;
 			
 			username = message[0];
 			command = message[1];
+
 			long int timestamp = atol(message[num_args-1]);
 			time_t now = time(0);
 
+			// Get username from ATM
 			if (!session_active)
 			{
 				session_active = true;
     				itr = accounts.find(username);
     				if(itr == accounts.end())
 				{
-    					strcpy(packet, "Invalid_Request");
+    					strncpy(packet, "Invalid_Request", 1023);
 					length = strlen("Invalid_Request");
     				}
 				else
 				{
 					user = username;
-					strcpy(packet, "You_are_logged_in");
+					strncpy(packet, "You_are_logged_in", 1023);
 					length = strlen(packet);
 				}
 			}
 			else if (user != username)
 			{
-				strncpy(packet, "Invalid_Request", 1024);
+				strncpy(packet, "Invalid_Request", 1023);
 			}
-			else if (now < timestamp || now > timestamp+5 || timestamp <= prevTimestamp)
+			else if (now < timestamp || now > timestamp+5 || timestamp < prevTimestamp)
 			{
-				strcpy(packet, "Denied_Bad_Timestamp");
+				strncpy(packet, "Denied_Bad_Timestamp", 1023);
 				length = strlen(packet);
 			}
 			else 
 			{
 			        prevTimestamp = timestamp;
 			  
+				// Prevent multiple ATMs from changing account balance at the same time
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
 				pthread_mutex_lock(&(mutex_itr->second));
 
+				// Show curent account balance
 				if(!strcmp(command, "balance"))
 				{
 					char* holder;
@@ -352,35 +361,42 @@ void* client_thread(void* arg)
 					length = strlen(packet);
 				}
 				
-				else if(!strcmp(command, "withdraw") && num_args == 4){
+				// Withdraw funds from account
+				else if(!strcmp(command, "withdraw") && num_args == 4)
+				{
 					amount = atoi(message[2]);
-					if(amount > 0 && itr->second >=amount){
+					if(amount > 0 && itr->second >=amount)
+					{
 						itr->second-=amount;
-						strcpy(packet, "Confirmed");
+						strncpy(packet, "Confirmed", 1023);
 						length = strlen("Confirmed");
 					}
-					else{
-						strcpy(packet, "Denied");
+					else
+					{
+						strncpy(packet, "Denied", 1023);
 						length = strlen("Denied");
 					}
 				}
 				
+				// Transfer funds to another account
 				else if(!strcmp(command, "transfer") && num_args == 5){
 					amount = atoi(message[2]);
 					transfer_username = message[3];
 					
 					transfer_itr = accounts.find(transfer_username);
-					if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
+					if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount)
+					{
 						std::map<const std::string , pthread_mutex_t>::iterator transfer_mutex_itr = mutexs.find(transfer_username);
 						pthread_mutex_lock(&(transfer_mutex_itr->second));
 						itr->second-=amount;
 						transfer_itr->second+=amount;
-						strcpy(packet, "Confirmed");
+						strncpy(packet, "Confirmed", 1023);
 						length = strlen("Confirmed");
 						pthread_mutex_unlock(&(transfer_mutex_itr->second));
 					}
-					else{
-						strcpy(packet, "Denied");
+					else
+					{
+						strncpy(packet, "Denied",1023);
 						length = strlen("Denied");
 					}
 				}
@@ -390,7 +406,7 @@ void* client_thread(void* arg)
 				}
 				
 				else{
-					strcpy(packet, "Invalid_Request");
+					strncpy(packet, "Invalid_Request", 1023);
 					length = strlen("Invalid_Request");
 				}
 
@@ -406,9 +422,9 @@ void* client_thread(void* arg)
 			strcat(packet, tmp);
 			length = strlen(packet);
 
-			//puts(packet);
 			plaintext.assign(packet, length);
 
+			// Hash message prior to sending
 			message_digest = "";
 			CryptoPP::StringSource(plaintext, true,
 				new CryptoPP::HashFilter(hash,
@@ -416,6 +432,7 @@ void* client_thread(void* arg)
 				)
 			);
 
+			// Append hash to message
 			plaintext += message_digest;
 
 			// Encrypt packet
@@ -467,7 +484,7 @@ void* console_thread(void* arg)
 		
 
 		// Blank Input
-		if (!strcmp(buf, ""))
+		if (!strncmp(buf, "", 79))
 		{
 			continue;
 		}
@@ -475,11 +492,10 @@ void* console_thread(void* arg)
 		{
 			token = strtok(buf, tok);
 			username = strtok(NULL, tok);
-		}
-
-		//deposit
-		if(!strcmp(token, "deposit")){
-			int amount = atoi(strtok(NULL, tok));
+			if (username == NULL){
+				printf("Invalid Request");
+				continue;
+			}
 			//get user
 			std::map<const std::string , int>::iterator itr = accounts.find(username);
 
@@ -488,6 +504,16 @@ void* console_thread(void* arg)
 				printf("User: %s does not exist\n", username);
 				continue;
 			}
+		}
+
+		//deposit
+		if(!strcmp(token, "deposit")){
+			char* amount_chr = strtok(NULL, tok);
+			if (amount_chr == NULL){
+				printf("Invalid Request");
+				continue;
+			}
+			int amount = atoi(amount_chr);
 
 			std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
     			pthread_mutex_lock(&(mutex_itr->second));
@@ -511,11 +537,6 @@ void* console_thread(void* arg)
 		}
 		//balance
 		else if(!strcmp(token, "balance")){
-			std::map<const std::string , int>::iterator itr = accounts.find(username);
-			if (itr == accounts.end()) {
-				printf("User: %s does not exist\n", username);
-				continue;
-			}
 			printf("Balance: %d\n", itr->second);
 		}
 		else
