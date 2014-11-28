@@ -100,7 +100,6 @@ int main(int argc, char* argv[])
 	CryptoPP::RSA::PublicKey pubkey;
 	privkey.Initialize(atm_modulus, atm_pub_key, atm_priv_key);
 	pubkey.Initialize(bank_modulus, bank_pub_key);
-	//CryptoPP::RSAES_OAEP_SHA_Encryptor rsa_encrypt (pubkey);
 	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA256>::Verifier rsa_sha_verify (pubkey);
 	CryptoPP::RSAES_OAEP_SHA_Decryptor rsa_decrypt (privkey);
 	CryptoPP::SHA256 hash;
@@ -108,7 +107,7 @@ int main(int argc, char* argv[])
 	byte bank_hash[CryptoPP::SHA256::DIGESTSIZE];
 
 	//input loop
-	unsigned char session_active = 0;
+	bool session_active = false;
 	char buf[80];
 	std::string user = "";  // current logged-in user
 	while(1)
@@ -179,8 +178,8 @@ printf("%d\n", pin);
 				user = username;
 				printf("\nEstablishing session\n");
 
-				strncpy (packet, "open ", 80);
-				strncat (packet, user.c_str(), 76);
+				strncpy (packet, "open ", 1024);
+				strncat (packet, user.c_str(), 1024);
 				length = strlen(packet);
 			}
 			else
@@ -205,6 +204,7 @@ printf("%d\n", pin);
 			}
 			else
 			{
+				puts("Session not Initiated, please login");
 				strcpy(packet, " ");
 				length = 2;
 			}
@@ -214,8 +214,8 @@ printf("%d\n", pin);
 		time_t now = time(0);
 		char tmp[11];
 		sprintf(tmp, "%ld", (long) now);
-		strcat(packet, " ");
-		strcat(packet, tmp);
+		strncat(packet, " ", 1024);
+		strncat(packet, tmp, 1024);
 		length = strlen(packet);
 
 		if (session_active)
@@ -276,7 +276,6 @@ printf("%d\n", pin);
 
 		if (!session_active)
 		{
-			ciphertext = "";
 			ciphertext.assign(packet, length);
 
 			// Decrypt packet
@@ -303,20 +302,36 @@ printf("%d\n", pin);
 			catch(CryptoPP::SignatureVerificationFilter::SignatureVerificationFailed)
 			{
 				puts("Invalid cryptographic signature detected!");
-				continue;
+				exit(1);
 			}
 			
 			memcpy (packet, plaintext.c_str(), plaintext.length());
-			length = ciphertext.length();
+			length = plaintext.length();
 
 			memcpy(key, packet, 16);
 			memcpy(iv, packet+16, 16);
+			packet[length] = '\0';
 				
-			// Setup aes cipher for encryption and decryption
-			aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
-			aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
+			// Verify timestamp
+			token = strtok(packet+33, tok);
+			long int timestamp = atol(token);
+			time_t now = time(0);
 
-			session_active = 1;
+			if (now < timestamp || now > timestamp + 20)
+			{
+				puts("Error: bank timestamp invalid!");
+				puts("Closing connection.");
+				user = "";
+				break;
+			}
+			else
+			{
+				// Setup aes cipher for encryption and decryption
+				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
+				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
+
+				session_active = true;
+			}
 		}
 		else
 		{
@@ -346,7 +361,7 @@ printf("%d\n", pin);
 			{
 				puts("Hash does not match.");
 				puts("Killing session.");
-				session_active = 0;
+				session_active = false;
 				break;
 			}
 			else
@@ -359,9 +374,9 @@ printf("%d\n", pin);
 		
 			// Verify timestamp
 			token = strtok(NULL, tok);
-			long int li = atol(token);
+			long int timestamp = atol(token);
 			time_t now = time(0);
-			if (now < li || now > li + 20)
+			if (now < timestamp || now > timestamp + 20)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");

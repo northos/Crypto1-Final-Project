@@ -111,7 +111,7 @@ void* client_thread(void* arg)
 	std::map<const std::string , int>::iterator transfer_itr;
 	std::string plaintext, ciphertext, signature, message_digest, atm_digest;
 	char* transfer_username;
-	char session_active = 0;
+	bool session_active = false;
 
 	CryptoPP::AutoSeededRandomPool rng;
 	byte key[CryptoPP::AES::DEFAULT_KEYLENGTH];
@@ -226,6 +226,14 @@ void* client_thread(void* arg)
 				memcpy(packet+16, iv, 16);
 				memcpy(packet+32, "\0", 1);
 				length = 32;
+
+				// Attach timestamp
+				now = time(0);
+				char tmp[11];
+				sprintf(tmp, "%ld", (long) now);
+				strcat(packet, " ");
+				strcat(packet, tmp);
+				length += 1 + strlen(tmp);
 				
 				// Sign message with bank's private key
 				plaintext.assign(packet, length);
@@ -251,7 +259,7 @@ void* client_thread(void* arg)
 				length = ciphertext.length();
 			}
 
-			session_active = 1;
+			session_active = true;
 		}
 		else
 		{
@@ -281,7 +289,7 @@ void* client_thread(void* arg)
 			{
 				puts("Hash does not match.");
 				puts("Killing session.");
-				session_active = 0;
+				session_active = false;
 				break;
 			}
 			else
@@ -365,7 +373,7 @@ void* client_thread(void* arg)
 					}
 				}
 				else if(!strcmp(command, "logout")){
-					session_active = 0;
+					session_active = false;
 					user = "";
 				}
 				
