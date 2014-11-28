@@ -20,6 +20,7 @@
 
 #include <map>
 #include <iostream>
+#include <ctime>
 
  /*string is USERNAME, int is BALANCE. */
  /* The PINS are no longer stored in the bank, as only the atm needs theml. Now the key is just the username, much simpler*/
@@ -216,12 +217,16 @@ void* client_thread(void* arg)
 				username = token;
 				user = token;
 
-    				itr = accounts.find(username);
-    				if(itr == accounts.end()){
-    					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request");
-    				}
+				//Verify timestamp
+				token = strtok(NULL, tok);
+				long int li;
+				li = atol(token);
+				time_t now = time(0);
+				if(now < li || now > li+20){ //timestamp must be within 20 seconds of current time
+					continue;
+				}
 				
+
 				// DEBUG
 				//puts("KEY:");
 				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
@@ -236,7 +241,13 @@ void* client_thread(void* arg)
 				//}
 				//puts("");
 
-				memcpy(packet, key, 16);
+    				itr = accounts.find(username);
+    				if(itr == accounts.end())
+    				{
+    					continue;
+    				}
+    			
+    				memcpy(packet, key, 16);
 				memcpy(packet+16, iv, 16);
 				memcpy(packet+32, "\0", 1);
 				length = 32;
@@ -294,8 +305,9 @@ void* client_thread(void* arg)
 				memcpy (packet, ciphertext.c_str(), ciphertext.length());
 				puts(packet);
 				length = ciphertext.length();
-			}
+			
 
+			}
 			session_active = 1;
 		}
 		else
@@ -333,7 +345,7 @@ void* client_thread(void* arg)
 			puts(user.c_str());
 			if (user != username)
 			{
-				strncpy(packet, "Invalid Request", 80);
+				strncpy(packet, "Invalid_Request", 80);
 			}
 			else {
 				printf("getting mutex of %s\n", username);
@@ -341,28 +353,67 @@ void* client_thread(void* arg)
 				//pthread_mutex_lock(&(mutex_itr->second));
 				printf("got mutex of %s\n", username);
     		//pthread_mutex_lock(&(mutexs.find(username)->second));
+		
+/////////////////////////////////////////////////////
+//WHY IS BALANCE HERE TWICE???
+/////////////////////////////////////////////////////
 			if(!strcmp(token, "balance")){
-				char* holder;
-				char balance[80];
-				snprintf(balance, 80,"%d", accounts[username]);
-				strncpy(packet, balance, 80);
-				length = strlen(packet);
-				packet[length - 1] = '\0';
-			}
-			
-				if(!strcmp(token, "balance")){
+				//Verify timestamp
+				token = strtok(NULL, tok);
+				long int li;
+				li = atol(token);
+				time_t now = time(0);
+				if(now < li || now > li+60){ //timestamp must be within a minute of current time
+					strcpy(packet, "Denied_Bad_Timestamp");
+					length = strlen("Denied_Bad_Timestamp");
+					packet[length - 1] = '\0';
+				}
+				else{ 
 					char* holder;
-					char balance[80];
+ 					char balance[80];
 					snprintf(balance, 80,"%d", accounts[username]);
 					strncpy(packet, balance, 80);
 					length = strlen(packet);
 					packet[length - 1] = '\0';
 				}
+			}
+			
+				if(!strcmp(token, "balance")){
+					//Verify timestamp
+					token = strtok(NULL, tok);
+					long int li;
+					li = atol(token);
+					time_t now = time(0);
+					if(now < li || now > li+60){ //timestamp must be within a minute of current time
+						strcpy(packet, "Denied_Bad_Timestamp");
+						length = strlen("Denied_Bad_Timestamp");
+						packet[length - 1] = '\0';
+					}
+					else{ 
+						char* holder;
+ 						char balance[80];
+						snprintf(balance, 80,"%d", accounts[username]);
+						strncpy(packet, balance, 80);
+						length = strlen(packet);
+						packet[length - 1] = '\0';
+					}
+				}
 				
 				else if(!strcmp(token, "withdraw")){
 					token = strtok(NULL, tok);
 					amount = atoi(token);
-					if(amount > 0 && itr->second >=amount){
+				
+					//Verify timestamp
+					token = strtok(NULL, tok);
+					long int li;
+					li = atol(token);
+					time_t now = time(0);
+					if(now < li || now > li+60){ //timestamp must be within a minute of current time
+						strcpy(packet, "Denied_Bad_Timestamp");
+						length = strlen("Denied_Bad_Timestamp");
+						packet[length - 1] = '\0';
+					}
+					else if(amount > 0 && itr->second >=amount){
 						itr->second-=amount;
 						strcpy(packet, "Confirmed");
 						length = strlen("Confirmed");
@@ -381,42 +432,62 @@ void* client_thread(void* arg)
 					token = strtok(NULL, tok);
 					transfer_username = token;
 					
-					transfer_itr = accounts.find(transfer_username);
-					if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
-						printf("getting mutex of %s\n", transfer_username);
-						std::map<const std::string , pthread_mutex_t>::iterator transfer_mutex_itr = mutexs.find(transfer_username);
-						//pthread_mutex_lock(&(transfer_mutex_itr->second));
-						printf("got mutex of %s\n", transfer_username);
-						itr->second-=amount;
-						transfer_itr->second+=amount;
-						strcpy(packet, "Confirmed");
-						length = strlen("Confirmed");
+					//Verify timestamp
+					token = strtok(NULL, tok);
+					long int li;
+					li = atol(token);
+					time_t now = time(0);
+					if(now < li || now > li+60){ //timestamp must be within a minute of current time
+						strcpy(packet, "Denied_Bad_Timestamp");
+						length = strlen("Denied_Bad_Timestamp");
 						packet[length - 1] = '\0';
-						puts("asdf;lkajsdf;");
-						pthread_mutex_unlock(&(transfer_mutex_itr->second));
-						printf("releasing mutex of %s\n", transfer_mutex_itr->first.c_str());
 					}
+					
 					else{
-						strcpy(packet, "Denied");
-						length = strlen("Denied");
-						packet[length - 1] = '\0';
+						transfer_itr = accounts.find(transfer_username);
+						if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
+							printf("getting mutex of %s\n", transfer_username);
+							std::map<const std::string , pthread_mutex_t>::iterator transfer_mutex_itr = mutexs.find(transfer_username);
+							//pthread_mutex_lock(&(transfer_mutex_itr->second));
+							printf("got mutex of %s\n", transfer_username);
+							itr->second-=amount;
+							transfer_itr->second+=amount;
+							strcpy(packet, "Confirmed");
+							length = strlen("Confirmed");
+							packet[length - 1] = '\0';
+							puts("asdf;lkajsdf;");
+							pthread_mutex_unlock(&(transfer_mutex_itr->second));
+							printf("releasing mutex of %s\n", transfer_mutex_itr->first.c_str());
+						}
+						else{
+							strcpy(packet, "Denied");
+							length = strlen("Denied");
+							packet[length - 1] = '\0';
+						}
 					}
 				}
 				else if(!strcmp(token, "logout")){
 					session_active = 0;
 					user = "";
+					strcpy(packet, "Confirmed");
+					length = strlen("Confirmed");
+					packet[length - 1] = '\0';
 				}
 				
 				else{
-					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request");
+					strcpy(packet, "Invalid_Request");
+					length = strlen("Invalid_Request");
 					packet[length - 1] = '\0';
 				}
 				
 				pthread_mutex_unlock(&(mutex_itr->second));
 				//printf("released mutex of %s\n", mutex_itr->first.c_str());
 			}
-			
+
+///////////////////////////////////////////////////////////////////////////////////////////////
+//The code below down to where the timestamp begins is all repeated code from above. why is it here????
+///////////////////////////////////////////////////////////////////////////////////////////////
+
 			puts(transfer_username);
 				transfer_itr = accounts.find(transfer_username);
     			if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
@@ -425,17 +496,27 @@ void* client_thread(void* arg)
 					strcpy(packet, "Confirmed");
 					length = strlen("Confirmed") + 1;
 					packet[length - 1] = '\0';
-	    		}
+		    	}
 			else if(!strcmp(token, "logout")){
 				session_active = 0;
 				user = "";
 			}
 			
 			else{
-				strcpy(packet, "Invalid Request");
-				length = strlen("Invalid Request");
+				strcpy(packet, "Invalid_Request");
+				length = strlen("Invalid_Request");
 				packet[length - 1] = '\0';
 			}
+		
+
+			//attach timestamp
+			time_t now = time(0)
+			char tmp[11];
+			sprintf(tmp, "%ld", (long) now);
+			strcat (packet, " ");
+			strcat (packet, tmp);
+			length = strlen(packet);
+
 			// padding: adds a space and then 'A's up to 1023 characters plus \0
 			//for(unsigned int i = length; i < 512; ++i){
 			//  packet[i] = 'A';
@@ -469,12 +550,6 @@ void* client_thread(void* arg)
 		}
 		
 		//send the new packet back to the client
-		/*TODO: need padding on packet so attacker cant see length
-		otherwise he can easily know magnitude of balance, or whether request was confimed or denied. */
-		/*also, maybe confimed/denied messages should be more complex, to avoid being easily faked/swapped.
-		right now, any request by any user will return identical confimed/denied messages, easy to send 
-		wrong message back to atm to ex. withdraw nmoney when you dont actually have enough.*/
-		
 	
 		if(sizeof(int) != send(csock, (void *)&length, sizeof(int), 0))
 		{
@@ -491,7 +566,7 @@ void* client_thread(void* arg)
 		However, it needs to first communicate with the atm that the request was invalid,
 		otherwise the atm waits forever for a response from the bank. Here, after sending
 		the message, the connection is terminated*/
-		if(!strncmp(packet, "Invalid Request", 15)){
+		if(!strncmp(packet, "Invalid_Request", 15)){
 			printf("client ID #%d sent invalid request.\n", csock);
 			break;
 		}
