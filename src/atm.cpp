@@ -106,16 +106,17 @@ int main(int argc, char* argv[])
 	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
 	byte bank_hash[CryptoPP::SHA256::DIGESTSIZE];
 
-	//input loop
+	long int prevTimestamp;
 	bool session_active = false;
 	bool key_received = false;
 	char buf[80];
 	std::string user = "";  // current logged-in user
-<<<<<<< HEAD
 	char packet[1024];
 	int length = 1;
+
 	while(1)
 	{
+		// Read input unless performing handshake, then skip input
 		if (!key_received || session_active)
 		{
 			printf("atm> ");
@@ -129,18 +130,6 @@ int main(int argc, char* argv[])
 			length = strlen(packet);
 			session_active = true;
 		}
-=======
-	long int prevTimestamp = 0;
-	while(1)
-	{
-		printf("atm> ");
-		fgets(buf, 79, stdin);
-		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
-
-		char packet[1024];
-		int length = 1;
-
->>>>>>> de2b8f39bf1dd5fe6b5f5b82b24bf3f74667e544
 		//input parsing
 		//logout
 		else if(!strcmp(buf, "logout")){
@@ -174,7 +163,7 @@ int main(int argc, char* argv[])
                 	unsigned int pin;
                 	fread(&pin, sizeof(unsigned int), 1, card);
                 	fclose(card);
-
+                	
 			unsigned char valid_pin = 0;
 			
 			for (int i = 3; i > 0; --i)
@@ -237,14 +226,6 @@ int main(int argc, char* argv[])
 		strncat(packet, " ", 1024);
 		strncat(packet, tmp, 1024);
 		length = strlen(packet);
-
-		// padding: extend packet to 1024 characters
-		packet[length - 1] = ' ';
-		for(unsigned int i = length; i < 1023; ++i){
-		  packet[i] = 'A';
-		}
-		packet[1023] = '\0';
-		length = 1024;
 
 		if (session_active)
 		{
@@ -345,11 +326,7 @@ int main(int argc, char* argv[])
 			long int timestamp = atol(token);
 			time_t now = time(0);
 
-<<<<<<< HEAD
-			if (now < timestamp || now > timestamp + 5)
-=======
-			if (now < timestamp || now > timestamp + 20 || timestamp <= prevTimestamp)
->>>>>>> de2b8f39bf1dd5fe6b5f5b82b24bf3f74667e544
+			if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");
@@ -358,8 +335,7 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
-			        prevTimestamp = timestamp;
-
+				prevTimestamp = timestamp;
 				// Setup aes cipher for encryption and decryption
 				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
 				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
