@@ -56,8 +56,8 @@ Cryptosystem description:
 
 
 =======
-  Pin numbers: The pin numbers were not hashed, since this information is necessary for testing.  The pin numbers
+  Pin numbers: The pin numbers are hashed with SHA256.  Since this information is necessary for testing, the pin numbers
   for each user are provided below for convenience.
-    *Alice	12306
-    *Bob	340
-    *Eve	276
+    *Alice	5934001
+    *Bob	3131678
+    *Eve	1006733

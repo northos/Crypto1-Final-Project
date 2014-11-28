@@ -103,6 +103,8 @@ int main(int argc, char* argv[])
 	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA256>::Verifier rsa_sha_verify (pubkey);
 	CryptoPP::RSAES_OAEP_SHA_Decryptor rsa_decrypt (privkey);
 	CryptoPP::SHA256 hash;
+	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
+	byte bank_hash[CryptoPP::SHA256::DIGESTSIZE];
 
 	long int prevTimestamp;
 	bool session_active = false;
@@ -131,18 +133,16 @@ int main(int argc, char* argv[])
 		}
 		//input parsing
 		//logout
-		else if(!strncmp(buf, "logout", 79))
+		else if(!strncmp(buf, "logout", 6))
 		{
 			user = "";
 			break;
 		}
 
 		//login [username]
-		else if(!strncmp(buf, "login", 79))
-		{
+		else if(!strncmp(buf, "login", 5)){
 			// ignore if already logged in
-			if(user != "")
-			{
+			if(user != ""){
 				printf("\n%s already logged in.\n", user.c_str());
 				continue;
 			}
@@ -162,9 +162,12 @@ int main(int argc, char* argv[])
                 	}
                 	
                 	// Fetching pin from card
-                	unsigned int pin;
-                	fread(&pin, sizeof(unsigned int), 1, card);
+                	unsigned char pin[40];
+                	fread(pin, sizeof(unsigned char), 32, card);
                 	fclose(card);
+
+			std::string pin_hash;
+			pin_hash.assign((char *)pin, 32);
                 	
 			bool valid_pin = false;
 			
@@ -174,24 +177,25 @@ int main(int argc, char* argv[])
 				fgets(buf, 79, stdin);
 				buf[strlen(buf) - 1] = '\0';
 				unsigned int pin_entry = atoi(buf);
-				std::string pin_str;
+
+				std::string pin_entry_str = "";
+				std::string pin_entry_hash = "";
 				
-				for (int j = 0; pin_entry > 0; j++)
+				for (int j = 0; pin_entry > 0; ++j)
 				{
-					pin_str[j] = (char)(pin_entry&0xff);
+					pin_entry_str.append(1, (unsigned char)(pin_entry&0xff));
 					pin_entry >>= 8;
 				}
-
-				// Calculate SHA256 hash of the pin
+				
+				// Calculate SHA256 hash of the pin entry
 				message_digest = "";
-				CryptoPP::StringSource(pin_str, true,
+				CryptoPP::StringSource(pin_entry_str, true,
 					new CryptoPP::HashFilter(hash,
-						new CryptoPP::StringSink(message_digest)
+						new CryptoPP::StringSink(pin_entry_hash)
 					)
 				);
-				puts(pin_str.c_str());
 				
-				if (pin_entry == pin)
+				if(pin_hash == pin_entry_hash)
 				{
 					valid_pin = true;
 					break;
@@ -199,6 +203,7 @@ int main(int argc, char* argv[])
 				printf("\nIncorrect pin, please try again. (%d tries remaining)", i-1);
 				sleep(2); // Slow entry to prevent brute forcing
 			}
+			
 			if (valid_pin)
 			{
 				user = username;
@@ -218,7 +223,7 @@ int main(int argc, char* argv[])
                   
 		// balance, withdraw, or transfer
 		// sends packet to bank with the username and command
-		else if(!strncmp(buf, "balance", 79) || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6))
+		else if(!strncmp(buf, "balance", 7) || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6))
 		{
 			if (session_active)
 			{

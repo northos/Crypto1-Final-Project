@@ -91,12 +91,14 @@ int main(int argc, char* argv[])
 			continue;
 			
 		// only create up to 5 active connections to prevent DDoS
-		if(num_threads < 5){
-		  num_threads++;
-		  pthread_t thread;
-		  pthread_create(&thread, NULL, client_thread, (void*)(&csock));
+		if(num_threads < 5)
+		{
+			num_threads++;
+			pthread_t thread;
+			pthread_create(&thread, NULL, client_thread, (void*)(&csock));
 		}
-		else{
+		else
+		{
 		  printf("[bank] declined client ID #%d: too many connections\n", csock);
 		}
 	}
@@ -200,7 +202,7 @@ void* client_thread(void* arg)
     			token = strtok(packet, tok);
 
 			// Open a session
-			if(!strcmp(token, "open"))
+			if(!strncmp(token, "open", 4))
 			{
 				// Get current time
 				token = strtok(NULL, tok);
@@ -352,7 +354,7 @@ void* client_thread(void* arg)
 				pthread_mutex_lock(&(mutex_itr->second));
 
 				// Show curent account balance
-				if(!strcmp(command, "balance"))
+				if(!strncmp(command, "balance", 7))
 				{
 					char* holder;
 					char balance[80];
@@ -362,7 +364,7 @@ void* client_thread(void* arg)
 				}
 				
 				// Withdraw funds from account
-				else if(!strcmp(command, "withdraw") && num_args == 4)
+				else if(!strncmp(command, "withdraw", 8) && num_args == 4)
 				{
 					amount = atoi(message[2]);
 					if(amount > 0 && itr->second >=amount)
@@ -379,7 +381,8 @@ void* client_thread(void* arg)
 				}
 				
 				// Transfer funds to another account
-				else if(!strcmp(command, "transfer") && num_args == 5){
+				else if(!strncmp(command, "transfer", 8) && num_args == 5)
+				{
 					amount = atoi(message[2]);
 					transfer_username = message[3];
 					
@@ -400,7 +403,8 @@ void* client_thread(void* arg)
 						length = strlen("Denied");
 					}
 				}
-				else if(!strcmp(command, "logout")){
+				else if(!strncmp(command, "logout", 6))
+				{
 					session_active = false;
 					user = "";
 				}
@@ -457,7 +461,8 @@ void* client_thread(void* arg)
 			printf("[bank] fail to send packet\n");
 			break;
 		}
-		if(!strncmp(packet, "Invalid_Request", 15)){
+		if(!strncmp(packet, "Invalid_Request", 15))
+		{
 			printf("client ID #%d sent invalid request.\n", csock);
 			break;
 		}
@@ -492,7 +497,8 @@ void* console_thread(void* arg)
 		{
 			token = strtok(buf, tok);
 			username = strtok(NULL, tok);
-			if (username == NULL){
+			if (username == NULL)
+			{
 				printf("Invalid Request");
 				continue;
 			}
@@ -508,7 +514,7 @@ void* console_thread(void* arg)
 
 		std::map<const std::string , int>::iterator itr = accounts.find(username);
 		//deposit
-		if(!strcmp(token, "deposit"))
+		if(!strncmp(token, "deposit", 7))
 		{
 			char* amount_chr = strtok(NULL, tok);
 			if (amount_chr == NULL)
@@ -543,7 +549,8 @@ void* console_thread(void* arg)
 			pthread_mutex_unlock(&(mutex_itr->second));
 		}
 		//balance
-		else if(!strcmp(token, "balance")){
+		else if(!strncmp(token, "balance", 7))
+		{
 			printf("Balance: %d\n", itr->second);
 		}
 		else
