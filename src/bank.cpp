@@ -15,6 +15,8 @@
 #include "cryptopp/osrng.h"
 #include "cryptopp/ccm.h"
 #include "cryptopp/rsa.h"
+#include "cryptopp/sha.h"
+#include "cryptopp/pssr.h"
 
 #include <map>
 #include <iostream>
@@ -106,7 +108,7 @@ void* client_thread(void* arg)
 	int amount;
 	std::map<const std::string , int>::iterator itr;
 	std::map<const std::string , int>::iterator transfer_itr;
-	std::string plaintext, ciphertext;
+	std::string plaintext, ciphertext, signature;
 	char* transfer_username;
 	char session_active = 0;
 
@@ -116,6 +118,17 @@ void* client_thread(void* arg)
 
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption aes_decrypt;
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption aes_encrypt;
+
+	//CryptoPP::InvertibleRSAFunction params;
+	//params.GenerateRandomWithKeySize(rng, 2800);
+	//CryptoPP::Integer bank_modulus = params.GetModulus();
+	//CryptoPP::Integer bank_priv_key = params.GetPrivateExponent();
+	//CryptoPP::Integer bank_pub_key = params.GetPublicExponent();
+
+	//std::cout << std::endl;
+	//std::cout << std::hex << bank_modulus << std::endl << std::endl;
+	//std::cout << std::hex << bank_priv_key << std::endl << std::endl;
+	//std::cout << std::hex << bank_pub_key << std::endl << std::endl;
 
 	CryptoPP::Integer bank_modulus( "0xbbed02f6dbb34c5aa313b9d6e54b3e862e0bd1d8d0d9b608cff72b5439ba40b0\
 					   4c1aab93a17e176cd56ba2626f25f25160f51940c9299347f1adffb22192e20a\
@@ -132,25 +145,33 @@ void* client_thread(void* arg)
 					   35d45505429661e7dbc6225c0abb94c2e12372f5da871c4bfd54b525b04d27b5\
 					   1605cb592faf9352daee996e0f482934d9796768bb4c3f4be4ceaccfce915fec\
 					   28eb43f8dd09ca3876f11131705aa64342c5a2bfc8fea997ea82c6591f9ba5a3\
-					   ce89b42ae6cf052d42b7451eafda6f22f696734ac716ba33e2c4b6514d0d295b");
+	      			   ce89b42ae6cf052d42b7451eafda6f22f696734ac716ba33e2c4b6514d0d295b");
 	CryptoPP::Integer bank_pub_key(	"0x11");
 
-	CryptoPP::Integer atm_modulus(	"0xe702c9e39c8deea1f2496b5535acc7839819c7e3b1124d360b4b33141db5632a\
-					   f648c5da27708bd7f5f5f8d8f32e15960c4791d43ec92906a528157398695379\
-					   037a9bfd0c580c276d37257a5c264a633f3fe4e16299177a1c4e54c2afa52103\
-					   04f948853a986c14e6124ac7849c61a17f67666017d3f2e84666c329fff1a85b\
-					   439c7f42dfbdc51e7b020fce5412eb087e1afc3c36c14523a4c714d169eec7f6\
-					   6d42d97688aafbe12151de9fca9e26c91b7c424d02afe2533bfb26b88f850171\
-					   c2629dd4f8268dc7daf7643d59997228c2cf25232f20f0b0d0536b6e92322cd1\
-					   68d66d6708efa17a3747e6c72f1ecd84bfdc4e7979bf2653c4af23a792d2f86b");
+
+	CryptoPP::Integer atm_modulus(	"0xe6950462319d89109fa52aed651b1739f657aa89d84182ffafcd8fc7f6b533a3\
+					   edacb06a14c2d9f8a957d19f60b4ccc76297be744bc200e1f0aa3348095b317c\
+					   42400f0d767b414b5deba8fb657fd3c6271e7f048640a267046995a8af66434d\
+					   7a4efb511f92dff176099fc8bb7c4469892efd767d2d03f22872a213437bbcee\
+					   14da0fd39b2d6d9e75eafbc559e0ffda8caed625371add100dab7035a3dc5e52\
+					   4d0e8a04451ee61b6135e686c7c6842f524a3da2d6262387c43c30542f66105d\
+					   8c017ae71ba2e56566e9cdbe8fdb8176768859362a59b79128027f1369c3f001\
+					   8e7f102ee4202e07fdd5ddd5a6741fce8a8be2df4dc83fb2f5e85efa9ddecbea\
+					   a00e0a816e741789c2fcfca35dabd25444ce300dd05661e9ba28934fc15039c8\
+					   5aa6fb4ec353227b110da6ca15c1d75644a92b416310412a43ac6d04812abab5\
+					   4c08f234d61106a32aed53c8e739ff97e65473f0c0d043364d24dd9caebf");
+
 	CryptoPP::Integer atm_pub_key(	"0x11");
 
 	CryptoPP::RSA::PrivateKey privkey;
+	CryptoPP::RSA::PublicKey bankpubkey;
 	CryptoPP::RSA::PublicKey pubkey;
 	privkey.Initialize(bank_modulus, bank_pub_key, bank_priv_key);
+	bankpubkey.Initialize(bank_modulus, bank_pub_key);
 	pubkey.Initialize(atm_modulus, atm_pub_key);
 	CryptoPP::RSAES_OAEP_SHA_Encryptor rsa_encrypt (pubkey);
-	CryptoPP::RSAES_OAEP_SHA_Decryptor rsa_decrypt (privkey);
+	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA1>::Signer rsa_sha_sign (privkey);
+	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA1>::Verifier rsa_sha_verify (bankpubkey);
 
 	while(1)
 	{
@@ -168,7 +189,6 @@ void* client_thread(void* arg)
 			printf("[bank] fail to read packet\n");
 			break;
 		}
-
 
 		if (!session_active)
 		{
@@ -199,23 +219,22 @@ void* client_thread(void* arg)
     				itr = accounts.find(username);
     				if(itr == accounts.end()){
     					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request") + 1;
-					packet[length - 1] = '\0';
+					length = strlen("Invalid Request");
     				}
 				
 				// DEBUG
-				//puts("KEY:");
-				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-				//{
-				//	printf("%02x ", key[i]);
-				//}
-				//puts("");
-				//puts("IV:");
-				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-				//{
-				//	printf("%02x ", iv[i]);
-				//}
-				//puts("");
+				puts("KEY:");
+				for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+				{
+					printf("%02x ", key[i]);
+				}
+				puts("");
+				puts("IV:");
+				for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+				{
+					printf("%02x ", iv[i]);
+				}
+				puts("");
 
 				memcpy(packet, key, 16);
 				memcpy(packet+16, iv, 16);
@@ -223,6 +242,39 @@ void* client_thread(void* arg)
 				length = 32;
 				
 				plaintext.assign(packet, length);
+				CryptoPP::StringSource ss1(plaintext, true,
+					new CryptoPP::SignerFilter(rng, rsa_sha_sign,
+						new CryptoPP::StringSink(signature)
+					)
+				);
+
+				//puts("Signature");
+				//for (int i = 0; i < signature.length(); i++)
+				//{
+				//	printf("%02x ", (unsigned char)signature[i]);
+				//}
+				//puts("");
+				//printf("%d\n", signature.length());
+
+				//puts("Message");
+				//for (int i = 0; i < plaintext.length(); i++)
+				//{
+				//	printf("%02x ", (unsigned char)plaintext[i]);
+				//}
+				//puts("");
+				//printf("%d\n", plaintext.length());
+
+				//puts("Signature");
+				//for (int i = 0; i < recovered.length(); i++)
+				//{
+				//	printf("%02x ", (unsigned char)recovered[i]);
+				//}
+				//printf("%d\n", recovered.length());
+				//puts("");
+
+				ciphertext = "";
+				plaintext.assign(packet, length);
+				plaintext.append(signature);
 
 				CryptoPP::StringSource(plaintext, true,
 					new CryptoPP::PK_EncryptorFilter(rng, rsa_encrypt,
@@ -231,12 +283,13 @@ void* client_thread(void* arg)
 				);
 				
 				// DEBUG
-				//puts("Encrypted");
-				//for (int i = 0; i < ciphertext.length(); i++)
-				//{
-				//	printf("%02x ", (unsigned char)ciphertext[i]);
-				//}
-				//puts("");
+				puts("Encrypted");
+				for (int i = 0; i < ciphertext.length(); i++)
+				{
+					printf("%02x ", (unsigned char)ciphertext[i]);
+				}
+				puts("");
+				printf("%d\n", ciphertext.length());
 				
 				memcpy (packet, ciphertext.c_str(), ciphertext.length());
 				length = ciphertext.length();
@@ -247,15 +300,16 @@ void* client_thread(void* arg)
 		else
 		{
 			// DEBUG
-			//puts("CIPHERTEXT:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
-			//printf("%d\n", length);
-			//puts("");
-			//ciphertext = packet;
+			puts("CIPHERTEXT:");
+			for (int i = 0; i < length; i++)
+			{
+				printf("%02x ", (unsigned char)(packet[i]));
+			}
+			puts("");
+			printf("%d\n", length);
+			ciphertext = packet;
 
+			ciphertext = "";
 			ciphertext.assign(packet, length);
 			plaintext = "";
 
@@ -282,14 +336,23 @@ void* client_thread(void* arg)
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
 				pthread_mutex_lock(&(mutex_itr->second));
 				//printf("got mutex of %s", username);
+    		pthread_mutex_lock(&(mutexs.find(username)->second));
+			if(!strcmp(token, "balance")){
+				char* holder;
+				char balance[80];
+				snprintf(balance, 80,"%d", accounts[username]);
+				strncpy(packet, balance, 80);
+				length = strlen(packet);
+				packet[length - 1] = '\0';
+			}
 			
 				if(!strcmp(token, "balance")){
 					char* holder;
 					char balance[80];
 					snprintf(balance, 80,"%d", accounts[username]);
 					strncpy(packet, balance, 80);
-					length = strlen(packet) + 1;
-					packet[length - 1] = ' ';
+					length = strlen(packet);
+					packet[length - 1] = '\0';
 				}
 				
 				else if(!strcmp(token, "withdraw")){
@@ -298,13 +361,13 @@ void* client_thread(void* arg)
 					if(amount > 0 && itr->second >=amount){
 						itr->second-=amount;
 						strcpy(packet, "Confirmed");
-						length = strlen("Confirmed") + 1;
-						packet[length - 1] = ' ';
+						length = strlen("Confirmed");
+						packet[length - 1] = '\0';
 					}
 					else{
 						strcpy(packet, "Denied");
-						length = strlen("Denied") + 1;
-						packet[length - 1] = ' ';
+						length = strlen("Denied");
+						packet[length - 1] = '\0';
 					}
 				}
 				
@@ -323,15 +386,15 @@ void* client_thread(void* arg)
 						itr->second-=amount;
 						transfer_itr->second+=amount;
 						strcpy(packet, "Confirmed");
-						length = strlen("Confirmed") + 1;
-						packet[length - 1] = ' ';
+						length = strlen("Confirmed");
+						packet[length - 1] = '\0';
 						pthread_mutex_unlock(&(transfer_mutex_itr->second));
 						//printf("releasing mutex of %s", transfer_mutex_itr->first);
 					}
 					else{
 						strcpy(packet, "Denied");
-						length = strlen("Denied") + 1;
-						packet[length - 1] = ' ';
+						length = strlen("Denied");
+						packet[length - 1] = '\0';
 					}
 				}
 				else if(!strcmp(token, "logout")){
@@ -341,21 +404,41 @@ void* client_thread(void* arg)
 				
 				else{
 					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request") + 1;
-					packet[length - 1] = ' ';
+					length = strlen("Invalid Request");
+					packet[length - 1] = '\0';
 				}
 				
 				pthread_mutex_unlock(&(mutex_itr->second));
 				//printf("released mutex of %s", mutex_itr->first);
 			}
 			
-			// padding: adds a space and then 'A's up to 1023 characters plus \0
-			for(unsigned int i = length; i < 1023; ++i){
-			  packet[i] = 'A';
+				transfer_itr = accounts.find(transfer_username);
+    			if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
+					itr->second-=amount;
+					transfer_itr->second+=amount;
+					strcpy(packet, "Confirmed");
+					length = strlen("Confirmed") + 1;
+					packet[length - 1] = '\0';
+	    		}
+			else if(!strcmp(token, "logout")){
+				session_active = 0;
+				user = "";
 			}
-			packet[1023] = '\0';
-			length = 1024;
 			
+			else{
+				strcpy(packet, "Invalid Request");
+				length = strlen("Invalid Request");
+				packet[length - 1] = '\0';
+			}
+			// padding: adds a space and then 'A's up to 1023 characters plus \0
+			//for(unsigned int i = length; i < 512; ++i){
+			//  packet[i] = 'A';
+			//}
+			//packet[511] = '\0';
+			//length = 512;
+
+			pthread_mutex_unlock(&(mutexs.find(username)->second));
+
 			plaintext = packet;
 			ciphertext = "";
 
@@ -370,12 +453,13 @@ void* client_thread(void* arg)
 			length = ciphertext.length();
 
 			// DEBUG
-			//puts("CIPHERTEXT:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
-			//puts("");
+			puts("CIPHERTEXT:");
+			for (int i = 0; i < length; i++)
+			{
+				printf("%02x ", (unsigned char)(packet[i]));
+			}
+			puts("");
+			printf("%d\n", length);
 		}
 		
 		//send the new packet back to the client

@@ -15,6 +15,7 @@
 #include "cryptopp/osrng.h"
 #include "cryptopp/ccm.h"
 #include "cryptopp/rsa.h"
+#include "cryptopp/pssr.h"
 
 int main(int argc, char* argv[])
 {
@@ -46,7 +47,7 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	std::string plaintext, ciphertext;
+	std::string plaintext, ciphertext, signature;
 
 	CryptoPP::AutoSeededRandomPool rng;
 
@@ -66,30 +67,36 @@ int main(int argc, char* argv[])
 					   11211f1a806526e62b3cbb852683f9d04981fddc5d10ed652cbc104cdf8b1be5");
 	CryptoPP::Integer bank_pub_key( "0x11");
 
-	CryptoPP::Integer atm_modulus(	"0xe702c9e39c8deea1f2496b5535acc7839819c7e3b1124d360b4b33141db5632a\
-					   f648c5da27708bd7f5f5f8d8f32e15960c4791d43ec92906a528157398695379\
-					   037a9bfd0c580c276d37257a5c264a633f3fe4e16299177a1c4e54c2afa52103\
-					   04f948853a986c14e6124ac7849c61a17f67666017d3f2e84666c329fff1a85b\
-					   439c7f42dfbdc51e7b020fce5412eb087e1afc3c36c14523a4c714d169eec7f6\
-					   6d42d97688aafbe12151de9fca9e26c91b7c424d02afe2533bfb26b88f850171\
-					   c2629dd4f8268dc7daf7643d59997228c2cf25232f20f0b0d0536b6e92322cd1\
-					   68d66d6708efa17a3747e6c72f1ecd84bfdc4e7979bf2653c4af23a792d2f86b");
-
-	CryptoPP::Integer atm_priv_key(	"0x11aa60c19804d481d7cc64110ea54e81071d13cda5a2876906e31d8189cd1e2b\
-					   f1b43f516f70832a1d59960a911719beac9c0fab561e711112a734d725414722\
-					   da9e75571d8e43303102b610e2e7d27d0c5dbbaad5d881cb98c0b82d0162767a\
-					   351613193f35d20da52b9042750ef8683569ca166838ddde8fecc09e5150388b\
-					   59f42b53cb20f9c271a6bd10d5781aa8091b70f7601a7b909c49e03d70a4a344\
-					   a69f5837c93750d474513086442143bc5b2ec308380ccc679cb0e9a014429340\
-					   271a96d9a4a5350c7a1685ec21c3643ff9fd73dcd7951a0a4588d3e10f297d85\
-					   59b0e97f146322702ab8532d56d1155f000d1fb733cc402045cedd32a9f2a6e5");
-	CryptoPP::Integer atm_pub_key(  "0x11");
+	CryptoPP::Integer atm_modulus(	"0xe6950462319d89109fa52aed651b1739f657aa89d84182ffafcd8fc7f6b533a3\
+					   edacb06a14c2d9f8a957d19f60b4ccc76297be744bc200e1f0aa3348095b317c\
+					   42400f0d767b414b5deba8fb657fd3c6271e7f048640a267046995a8af66434d\
+					   7a4efb511f92dff176099fc8bb7c4469892efd767d2d03f22872a213437bbcee\
+					   14da0fd39b2d6d9e75eafbc559e0ffda8caed625371add100dab7035a3dc5e52\
+					   4d0e8a04451ee61b6135e686c7c6842f524a3da2d6262387c43c30542f66105d\
+					   8c017ae71ba2e56566e9cdbe8fdb8176768859362a59b79128027f1369c3f001\
+					   8e7f102ee4202e07fdd5ddd5a6741fce8a8be2df4dc83fb2f5e85efa9ddecbea\
+					   a00e0a816e741789c2fcfca35dabd25444ce300dd05661e9ba28934fc15039c8\
+					   5aa6fb4ec353227b110da6ca15c1d75644a92b416310412a43ac6d04812abab5\
+					   4c08f234d61106a32aed53c8e739ff97e65473f0c0d043364d24dd9caebf");
+	CryptoPP::Integer atm_priv_key(	"0x1b20971a9c6ce2f2e59af5fdcfa8d58e59377d79a0f8a5fff690a780efd9152258\
+					   326f1b89f8ce597d55a030de336362c04e166808e9a5c03a6e6062d3ec9c68f8bc\
+					   3e019577e990656704d2482d27f931c75a3cc480131b2db2119b5fede9cce13677\
+					   eb6d205694e0b5d690160e9ea30114964a2cd81e94f5b32220624acaeed546d4af\
+					   7baafdd66839c34464ed4b46e35fdcf551c6ecd4b650678dd70addeb90984c78f9\
+					   12b1a8de42939762cc0f53e9d2a7c054b9c695177a37ff623f9d1639a6ed913bd6\
+					   acc8d649c09b02015eb4221606edc226402ed35333ea68c5ba83436c9a9f35b771\
+					   bfeb59371d90efd88c03c0df87881c1c473cd5750d9fb603e44193a23654e26bc1\
+					   340283cb19f042263cc0fe90bf6de06a73b2c948539ac3b39313f7241bbf261b21\
+					   45316550207ba6cc392b955dd418030258b8bbd8d2ce03664928028191a99f9f7e\
+					   e4c32a268f812eb387e3499ead2f5e4f6f680291");
+	CryptoPP::Integer atm_pub_key(	"0x11");
 
 	CryptoPP::RSA::PrivateKey privkey;
 	CryptoPP::RSA::PublicKey pubkey;
 	privkey.Initialize(atm_modulus, atm_pub_key, atm_priv_key);
 	pubkey.Initialize(bank_modulus, bank_pub_key);
-	CryptoPP::RSAES_OAEP_SHA_Encryptor rsa_encrypt (pubkey);
+	//CryptoPP::RSAES_OAEP_SHA_Encryptor rsa_encrypt (pubkey);
+	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA1>::Verifier rsa_sha_verify (pubkey);
 	CryptoPP::RSAES_OAEP_SHA_Decryptor rsa_decrypt (privkey);
 
 	//input loop
@@ -187,11 +194,11 @@ printf("%d\n", pin);
 		}
 
 		// padding: adds a space and then 'A's up to 1023 characters plus \0
-		packet[length - 1] = ' ';
-		for(unsigned int i = length; i < 1023; ++i){
-		  packet[i] = 'A';
-		}
-		packet[1023] = '\0';
+		//packet[length - 1] = ' ';
+		//for(unsigned int i = length; i < 512; ++i){
+		//  packet[i] = 'A';
+		//}
+		//packet[511] = '\0';
 
 		if (session_active)
 		{
@@ -209,13 +216,13 @@ printf("%d\n", pin);
 			length = ciphertext.length();
 
 			// DEBUG
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
+			for (int i = 0; i < length; i++)
+			{
+				printf("%02x ", (unsigned char)(packet[i]));
+			}
 
-			//puts("");
-			//printf("%d\n", length);
+			puts("");
+			printf("%d\n", length);
 		}
 
 
@@ -252,21 +259,41 @@ printf("%d\n", pin);
 		{
 
 			// DEBUG
-			//puts("rsa ciphertext:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)packet[i]);
-			//}
-			//puts("");
-			//printf("%d\n", length);
+			puts("rsa ciphertext:");
+			for (int i = 0; i < length; i++)
+			{
+				printf("%02x ", (unsigned char)packet[i]);
+			}
+			puts("");
+			printf("%d\n", length);
 
+			ciphertext = "";
+			plaintext = "";
+			signature = "";
 			ciphertext.assign(packet, length);
 
 			CryptoPP::StringSource(ciphertext, true,
 				new CryptoPP::PK_DecryptorFilter(rng, rsa_decrypt,
-					new CryptoPP::StringSink(plaintext)
+					new CryptoPP::StringSink(signature)
 				)
 			);
+
+			try
+			{
+				CryptoPP::StringSource(signature, true,
+					new CryptoPP::SignatureVerificationFilter(
+						rsa_sha_verify,
+						new CryptoPP::StringSink(plaintext),
+						CryptoPP::SignatureVerificationFilter::THROW_EXCEPTION |
+						CryptoPP::SignatureVerificationFilter::PUT_MESSAGE
+					)
+				);
+			}
+			catch(CryptoPP::SignatureVerificationFilter::SignatureVerificationFailed)
+			{
+				puts("Invalid cryptographic signature detected!");
+				continue;
+			}
 			
 			memcpy (packet, plaintext.c_str(), plaintext.length());
 			length = ciphertext.length();
@@ -275,18 +302,18 @@ printf("%d\n", pin);
 			memcpy(iv, packet+16, 16);
 				
 			// DEBUG
-			//puts("KEY:");
-			//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-			//{
-			//	printf("%02x ", key[i]);
-			//}
-			//puts("");
-			//puts("IV:");
-			//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-			//{
-			//	printf("%02x ", iv[i]);
-			//}
-			//puts("");
+			puts("KEY:");
+			for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+			{
+				printf("%02x ", key[i]);
+			}
+			puts("");
+			puts("IV:");
+			for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+			{
+				printf("%02x ", iv[i]);
+			}
+			puts("");
 
 			// Setup aes cipher for encryption and decryption
 			aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
@@ -300,12 +327,12 @@ printf("%d\n", pin);
 			plaintext = "";
 
 			// DEBUG
-			//puts("CIPHERTEXT:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
-			//puts("");
+			puts("CIPHERTEXT:");
+			for (int i = 0; i < length; i++)
+			{
+				printf("%02x ", (unsigned char)(packet[i]));
+			}
+			puts("");
 
 			// Decrypt Packet
 			CryptoPP::StringSource( ciphertext, true,
