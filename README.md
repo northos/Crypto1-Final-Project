@@ -41,3 +41,5 @@ Cryptosystem description:
 - Timeout: Messages with time stamps more than 5 seconds out of date will be rejected.
   Messages must also be received in order: messages with a timestamp older (or the same as) one previously
   received will be assumed to be a duplicate and rejected.
+
+- Connection limit: The bank will only accept up to 5 ATM connections.

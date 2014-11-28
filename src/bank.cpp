@@ -25,6 +25,7 @@
  /* The PINS are no longer stored in the bank, as only the atm needs theml. Now the key is just the username, much simpler*/
 std::map<const std::string , int> accounts;
 std::map<const std::string , pthread_mutex_t> mutexs;
+int num_threads;
 
 void* client_thread(void* arg);
 void* console_thread(void* arg);
@@ -77,6 +78,8 @@ int main(int argc, char* argv[])
 	
 	pthread_t cthread;
 	pthread_create(&cthread, NULL, console_thread, NULL);
+
+	num_threads = 0;
 	
 	//loop forever accepting new connections
 	while(1)
@@ -87,8 +90,15 @@ int main(int argc, char* argv[])
 		if(csock < 0)	//bad client, skip it
 			continue;
 			
-		pthread_t thread;
-		pthread_create(&thread, NULL, client_thread, (void*)(&csock));
+		// only create up to 5 active connections to prevent DDoS
+		if(num_threads < 5){
+		  num_threads++;
+		  pthread_t thread;
+		  pthread_create(&thread, NULL, client_thread, (void*)(&csock));
+		}
+		else{
+		  printf("[bank] declined client ID #%d: too many connections\n", csock);
+		}
 	}
 }
 
@@ -437,7 +447,7 @@ void* client_thread(void* arg)
 	}
 
 	printf("[bank] client ID #%d disconnected\n", csock);
-
+	num_threads--;
 	close(csock);
 	return NULL;
 }
