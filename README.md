@@ -52,6 +52,10 @@ Cryptosystem description:
   Messages must also be received in order: messages with a timestamp older (or the same as) one previously
   received will be assumed to be a duplicate and rejected.
 
+- Connection limit: The bank will only accept up to 5 ATM connections.
+
+
+=======
   Pin numbers: The pin numbers were not hashed, since this information is necessary for testing.  The pin numbers
   for each user are provided below for convenience.
     *Alice	12306
