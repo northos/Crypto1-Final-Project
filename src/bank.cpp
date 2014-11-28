@@ -482,11 +482,10 @@ void* console_thread(void* arg)
 		{
 			token = strtok(buf, tok);
 			username = strtok(NULL, tok);
-		}
-
-		//deposit
-		if(!strcmp(token, "deposit")){
-			int amount = atoi(strtok(NULL, tok));
+			if (username == NULL){
+				printf("Invalid Request");
+				continue;
+			}
 			//get user
 			std::map<const std::string , int>::iterator itr = accounts.find(username);
 
@@ -495,6 +494,16 @@ void* console_thread(void* arg)
 				printf("User: %s does not exist\n", username);
 				continue;
 			}
+		}
+
+		//deposit
+		if(!strcmp(token, "deposit")){
+			char* amount_chr = strtok(NULL, tok);
+			if (amount_chr == NULL){
+				printf("Invalid Request");
+				continue;
+			}
+			int amount = atoi(amount_chr);
 
 			std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
     			pthread_mutex_lock(&(mutex_itr->second));
@@ -518,11 +527,6 @@ void* console_thread(void* arg)
 		}
 		//balance
 		else if(!strcmp(token, "balance")){
-			std::map<const std::string , int>::iterator itr = accounts.find(username);
-			if (itr == accounts.end()) {
-				printf("User: %s does not exist\n", username);
-				continue;
-			}
 			printf("Balance: %d\n", itr->second);
 		}
 		else
