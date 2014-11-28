@@ -112,6 +112,7 @@ void* client_thread(void* arg)
 	std::string plaintext, ciphertext, signature, message_digest, atm_digest;
 	char* transfer_username;
 	bool session_active = false;
+	bool key_generated = false;
 
 	CryptoPP::AutoSeededRandomPool rng;
 	byte key[CryptoPP::AES::DEFAULT_KEYLENGTH];
@@ -182,37 +183,20 @@ void* client_thread(void* arg)
 			break;
 		}
 
-		if (!session_active)
+		if (!key_generated)
 		{
     			token = strtok(packet, tok);
 
 			if(!strcmp(token, "open"))
 			{
-				// Verify username exists
-    				token = strtok(NULL, tok);
-				
-				if (token == NULL)
-				{
-					continue;
-				}
-				username = token;
-				user = token;
-			
 				token = strtok(NULL, tok);
 				long int timestamp = atol(token);
 				time_t now = time(0);
 			
-				if (now < timestamp || now > timestamp + 20)
+				if (now < timestamp || now > timestamp + 5)
 				{
 					continue;
 				}
-
-    				itr = accounts.find(username);
-    				if(itr == accounts.end())
-				{
-    					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request");
-    				}
 
 				// Generate session key and IV
 				rng.GenerateBlock(key, sizeof(key));
@@ -257,9 +241,9 @@ void* client_thread(void* arg)
 				
 				memcpy (packet, ciphertext.c_str(), ciphertext.length());
 				length = ciphertext.length();
+				key_generated = true;
 			}
-
-			session_active = true;
+			
 		}
 		else
 		{
@@ -316,13 +300,28 @@ void* client_thread(void* arg)
 			long int timestamp = atol(message[num_args-1]);
 			time_t now = time(0);
 
-			if (user != username)
+			if (!session_active)
 			{
-				strncpy(packet, "Invalid Request", 80);
+				session_active = true;
+    				itr = accounts.find(username);
+    				if(itr == accounts.end())
+				{
+    					strcpy(packet, "Invalid Request");
+					length = strlen("Invalid Request");
+    				}
+				else
+				{
+					user = username;
+					strcpy(packet, "You_are_logged_in");
+					length = strlen(packet);
+				}
 			}
-			else if (now < timestamp || now > timestamp+10)
+			else if (user != username)
 			{
-				puts("bad timestamp");
+				strncpy(packet, "Invalid_Request", 1024);
+			}
+			else if (now < timestamp || now > timestamp+5)
+			{
 				strcpy(packet, "Denied_Bad_Timestamp");
 				length = strlen(packet);
 			}
@@ -378,8 +377,8 @@ void* client_thread(void* arg)
 				}
 				
 				else{
-					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request");
+					strcpy(packet, "Invalid_Request");
+					length = strlen("Invalid_Request");
 				}
 
 			
@@ -394,6 +393,7 @@ void* client_thread(void* arg)
 			strcat(packet, tmp);
 			length = strlen(packet);
 
+			//puts(packet);
 			plaintext.assign(packet, length);
 
 			message_digest = "";
@@ -427,7 +427,7 @@ void* client_thread(void* arg)
 			printf("[bank] fail to send packet\n");
 			break;
 		}
-		if(!strncmp(packet, "Invalid Request", 15)){
+		if(!strncmp(packet, "Invalid_Request", 15)){
 			printf("client ID #%d sent invalid request.\n", csock);
 			break;
 		}

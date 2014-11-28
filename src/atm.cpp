@@ -108,21 +108,29 @@ int main(int argc, char* argv[])
 
 	//input loop
 	bool session_active = false;
+	bool key_received = false;
 	char buf[80];
 	std::string user = "";  // current logged-in user
+	char packet[1024];
+	int length = 1;
 	while(1)
 	{
-		printf("atm> ");
-		fgets(buf, 79, stdin);
-		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
-
-		//TODO: your input parsing code has to put data here
-		char packet[1024];
-		int length = 1;
-
+		if (!key_received || session_active)
+		{
+			printf("atm> ");
+			fgets(buf, 79, stdin);
+			buf[strlen(buf)-1] = '\0';	//trim off trailing newline
+		}
+		
+		if (key_received && ! session_active)
+		{
+			strncpy(packet, user.c_str(), 1024);
+			length = strlen(packet);
+			session_active = true;
+		}
 		//input parsing
 		//logout
-		if(!strcmp(buf, "logout")){
+		else if(!strcmp(buf, "logout")){
 		  user = "";
 		  break;
 		}
@@ -179,7 +187,7 @@ printf("%d\n", pin);
 				printf("\nEstablishing session\n");
 
 				strncpy (packet, "open ", 1024);
-				strncat (packet, user.c_str(), 1024);
+				//strncat (packet, user.c_str(), 1024);
 				length = strlen(packet);
 			}
 			else
@@ -206,7 +214,8 @@ printf("%d\n", pin);
 			{
 				puts("Session not Initiated, please login");
 				strcpy(packet, " ");
-				length = 2;
+				length = 1;
+				continue;
 			}
 		}
 
@@ -274,7 +283,7 @@ printf("%d\n", pin);
 			break;
 		}
 
-		if (!session_active)
+		if (!key_received)
 		{
 			ciphertext.assign(packet, length);
 
@@ -317,7 +326,7 @@ printf("%d\n", pin);
 			long int timestamp = atol(token);
 			time_t now = time(0);
 
-			if (now < timestamp || now > timestamp + 20)
+			if (now < timestamp || now > timestamp + 5)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");
@@ -330,7 +339,7 @@ printf("%d\n", pin);
 				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
 				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
 
-				session_active = true;
+				key_received = true;
 			}
 		}
 		else
@@ -376,7 +385,7 @@ printf("%d\n", pin);
 			token = strtok(NULL, tok);
 			long int timestamp = atol(token);
 			time_t now = time(0);
-			if (now < timestamp || now > timestamp + 20)
+			if (now < timestamp || now > timestamp + 5)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");
