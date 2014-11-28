@@ -386,7 +386,7 @@ int main(int argc, char* argv[])
 			token = strtok(NULL, tok);
 			long int timestamp = atol(token);
 			time_t now = time(0);
-			if (now < timestamp || now > timestamp + 5)
+			if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");
@@ -395,6 +395,7 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
+			        prevTimestamp = timestamp;
 				puts(message);
 			}
 		}

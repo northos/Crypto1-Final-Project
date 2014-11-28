@@ -193,10 +193,11 @@ void* client_thread(void* arg)
 				long int timestamp = atol(token);
 				time_t now = time(0);
 			
-				if (now < timestamp || now > timestamp + 5)
+				if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
 				{
 					continue;
 				}
+				prevTimestamp = timestamp;
 
 				// Generate session key and IV
 				rng.GenerateBlock(key, sizeof(key));
@@ -320,13 +321,15 @@ void* client_thread(void* arg)
 			{
 				strncpy(packet, "Invalid_Request", 1024);
 			}
-			else if (now < timestamp || now > timestamp+5)
+			else if (now < timestamp || now > timestamp+5 || timestamp <= prevTimestamp)
 			{
 				strcpy(packet, "Denied_Bad_Timestamp");
 				length = strlen(packet);
 			}
 			else 
 			{
+			        prevTimestamp = timestamp;
+			  
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
 				pthread_mutex_lock(&(mutex_itr->second));
 

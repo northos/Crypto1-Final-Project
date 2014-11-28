@@ -38,7 +38,6 @@ Cryptosystem description:
 - Key sharing: The ATM and Bank communicate via AES-encrypted messages, thus they must share a session key.
   This is done upon opening a connection via RSA public-key encryption.
 
-- Timeout: The bank will not accept messages whose timestamps are more than 10 seconds old, and won't 
-  accept client connections more than 20 seconds old. The ATM will accept timestamps up to 20 seconds old.
+- Timeout: Messages with time stamps more than 5 seconds out of date will be rejected.
   Messages must also be received in order: messages with a timestamp older (or the same as) one previously
   received will be assumed to be a duplicate and rejected.
