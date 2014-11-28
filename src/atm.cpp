@@ -103,8 +103,6 @@ int main(int argc, char* argv[])
 	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA256>::Verifier rsa_sha_verify (pubkey);
 	CryptoPP::RSAES_OAEP_SHA_Decryptor rsa_decrypt (privkey);
 	CryptoPP::SHA256 hash;
-	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
-	byte bank_hash[CryptoPP::SHA256::DIGESTSIZE];
 
 	long int prevTimestamp;
 	bool session_active = false;
@@ -133,15 +131,18 @@ int main(int argc, char* argv[])
 		}
 		//input parsing
 		//logout
-		else if(!strncmp(buf, "logout", 79)){
-		  user = "";
-		  break;
+		else if(!strncmp(buf, "logout", 79))
+		{
+			user = "";
+			break;
 		}
 
 		//login [username]
-		else if(!strncmp(buf, "login", 79)){
+		else if(!strncmp(buf, "login", 79))
+		{
 			// ignore if already logged in
-			if(user != ""){
+			if(user != "")
+			{
 				printf("\n%s already logged in.\n", user.c_str());
 				continue;
 			}
@@ -173,6 +174,22 @@ int main(int argc, char* argv[])
 				fgets(buf, 79, stdin);
 				buf[strlen(buf) - 1] = '\0';
 				unsigned int pin_entry = atoi(buf);
+				std::string pin_str;
+				
+				for (int j = 0; pin_entry > 0; j++)
+				{
+					pin_str[j] = (char)(pin_entry&0xff);
+					pin_entry >>= 8;
+				}
+
+				// Calculate SHA256 hash of the pin
+				message_digest = "";
+				CryptoPP::StringSource(pin_str, true,
+					new CryptoPP::HashFilter(hash,
+						new CryptoPP::StringSink(message_digest)
+					)
+				);
+				puts(pin_str.c_str());
 				
 				if (pin_entry == pin)
 				{
@@ -182,7 +199,6 @@ int main(int argc, char* argv[])
 				printf("\nIncorrect pin, please try again. (%d tries remaining)", i-1);
 				sleep(2); // Slow entry to prevent brute forcing
 			}
-			
 			if (valid_pin)
 			{
 				user = username;

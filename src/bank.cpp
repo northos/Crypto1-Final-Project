@@ -496,10 +496,13 @@ void* console_thread(void* arg)
 			}
 		}
 
+		std::map<const std::string , int>::iterator itr = accounts.find(username);
 		//deposit
-		if(!strcmp(token, "deposit")){
+		if(!strcmp(token, "deposit"))
+		{
 			char* amount_chr = strtok(NULL, tok);
-			if (amount_chr == NULL){
+			if (amount_chr == NULL)
+			{
 				printf("Invalid Request");
 				continue;
 			}
@@ -508,6 +511,10 @@ void* console_thread(void* arg)
 			std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
     			pthread_mutex_lock(&(mutex_itr->second));
 
+			if (itr == accounts.end())
+			{
+				puts("User does not exist");
+			}
 			if (amount < 0)
 			{
 				// Deposit is negative
