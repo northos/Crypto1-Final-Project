@@ -17,8 +17,8 @@ encryption uses the crypto++ library
 
 Cryptosystem description:
 - Communication: the ATMs and bank communicate primarily via the proxy server, which relays
-  messages sent to it (to an ATM if sent by the bank, and vice versa). Messages are encrypted 
-  with AES and padded to a length of 1024 characters.
+  messages sent to it (to an ATM if sent by the bank, and vice versa). Messages are padded
+  to a length of 1024 characters, hashed with SHA1, and encrypted with AES.
 
 - Flow: Both the ATMs and the bank run a local console thread. The bank's console can be used
   to deposit money into an account or check its balance. Because a user's account cannot be
@@ -35,7 +35,10 @@ Cryptosystem description:
   balances. The bank also holds a mutex for each account so that the separate threads for
   different client connections don't conflict if there are multiple ATMs connected.
 
-- Key sharing: The ATM and Bank communicate via AES-encrypted messages, thus they must share a key.
+- Key sharing: The ATM and Bank communicate via AES-encrypted messages, thus they must share a session key.
   This is done upon opening a connection via RSA public-key encryption.
 
-- Timeout: connections between Bank and ATM will timeout after 60 seconds of inactivity.
+- Timeout: The bank will not accept messages whose timestamps are more than 10 seconds old, and won't 
+  accept client connections more than 20 seconds old. The ATM will accept timestamps up to 20 seconds old.
+  Messages must also be received in order: messages with a timestamp older (or the same as) one previously
+  received will be assumed to be a duplicate and rejected.

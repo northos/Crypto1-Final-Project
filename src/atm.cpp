@@ -110,13 +110,13 @@ int main(int argc, char* argv[])
 	bool session_active = false;
 	char buf[80];
 	std::string user = "";  // current logged-in user
+	long int prevTimestamp = 0;
 	while(1)
 	{
 		printf("atm> ");
 		fgets(buf, 79, stdin);
 		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
 
-		//TODO: your input parsing code has to put data here
 		char packet[1024];
 		int length = 1;
 
@@ -153,9 +153,7 @@ int main(int argc, char* argv[])
                 	unsigned int pin;
                 	fread(&pin, sizeof(unsigned int), 1, card);
                 	fclose(card);
-                	
-// Remove before submission
-printf("%d\n", pin);
+
 			unsigned char valid_pin = 0;
 			
 			for (int i = 3; i > 0; --i)
@@ -217,6 +215,14 @@ printf("%d\n", pin);
 		strncat(packet, " ", 1024);
 		strncat(packet, tmp, 1024);
 		length = strlen(packet);
+
+		// padding: extend packet to 1024 characters
+		packet[length - 1] = ' ';
+		for(unsigned int i = length; i < 1023; ++i){
+		  packet[i] = 'A';
+		}
+		packet[1023] = '\0';
+		length = 1024;
 
 		if (session_active)
 		{
@@ -317,7 +323,7 @@ printf("%d\n", pin);
 			long int timestamp = atol(token);
 			time_t now = time(0);
 
-			if (now < timestamp || now > timestamp + 20)
+			if (now < timestamp || now > timestamp + 20 || timestamp <= prevTimestamp)
 			{
 				puts("Error: bank timestamp invalid!");
 				puts("Closing connection.");
@@ -326,6 +332,8 @@ printf("%d\n", pin);
 			}
 			else
 			{
+			        prevTimestamp = timestamp;
+
 				// Setup aes cipher for encryption and decryption
 				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
 				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);

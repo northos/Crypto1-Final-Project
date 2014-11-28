@@ -165,6 +165,8 @@ void* client_thread(void* arg)
 	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
 	byte atm_hash[CryptoPP::SHA256::DIGESTSIZE];
 
+	long int prevTimestamp = 0;
+
 	while(1)
 	{
 		//read the packet from the ATM
@@ -202,9 +204,12 @@ void* client_thread(void* arg)
 				long int timestamp = atol(token);
 				time_t now = time(0);
 			
-				if (now < timestamp || now > timestamp + 20)
+				if (now < timestamp || now > timestamp + 20 || timestamp <= prevTimestamp)
 				{
-					continue;
+				  continue;
+				}
+				else{
+				  prevTimestamp = timestamp;
 				}
 
     				itr = accounts.find(username);
@@ -320,7 +325,7 @@ void* client_thread(void* arg)
 			{
 				strncpy(packet, "Invalid Request", 80);
 			}
-			else if (now < timestamp || now > timestamp+10)
+			else if (now < timestamp || now > timestamp+10 || timestamp <= prevTimestamp)
 			{
 				puts("bad timestamp");
 				strcpy(packet, "Denied_Bad_Timestamp");
@@ -328,6 +333,7 @@ void* client_thread(void* arg)
 			}
 			else 
 			{
+			        prevTimestamp = timestamp;
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
 				pthread_mutex_lock(&(mutex_itr->second));
 
@@ -393,6 +399,14 @@ void* client_thread(void* arg)
 			strcat(packet, " ");
 			strcat(packet, tmp);
 			length = strlen(packet);
+
+			// padding: extend packet to 1024 characters
+			packet[length - 1] = ' ';
+			for(unsigned int i = length; i < 1023; ++i){
+			  packet[i] = 'A';
+			}
+			packet[1023] = '\0';
+			length = 1024;
 
 			plaintext.assign(packet, length);
 
