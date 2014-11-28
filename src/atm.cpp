@@ -194,6 +194,7 @@ printf("%d\n", pin);
                   
 		// balance, withdraw, or transfer
 		// sends packet to bank with the username and command
+<<<<<<< HEAD
 		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6))
 		{
 			if (session_active)
@@ -205,11 +206,22 @@ printf("%d\n", pin);
 			}
 			else
 			{
+=======
+		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6)){
+			if (session_active){
+		  		strcpy(packet, user.c_str());
+		  		strcat(packet, " ");
+				strcat(packet, buf);
+				length = user.length() + strlen(buf) + 2;
+			}
+			else{
+>>>>>>> 9b128147b0875935c1be7e54f4b91b1c76fa9012
 				strcpy(packet, " ");
 				length = 2;
 			}
 		}
 
+<<<<<<< HEAD
 		// Attach timestamp
 		time_t now = time(0);
 		char tmp[11];
@@ -217,6 +229,22 @@ printf("%d\n", pin);
 		strcat(packet, " ");
 		strcat(packet, tmp);
 		length = strlen(packet);
+=======
+		//attach timestamp
+		time_t now = time(0)
+		char tmp[11];
+		sprintf(tmp, "%ld", (long) now);
+		strcat (packet, " ");
+		strcat (packet, tmp);
+		length = strlen(packet);
+
+		// padding: adds a space and then 'A's up to 1023 characters plus \0
+		//packet[length - 1] = ' ';
+		//for(unsigned int i = length; i < 512; ++i){
+		//  packet[i] = 'A';
+		//}
+		//packet[511] = '\0';
+>>>>>>> 9b128147b0875935c1be7e54f4b91b1c76fa9012
 
 		if (session_active)
 		{
@@ -329,6 +357,7 @@ printf("%d\n", pin);
 					new CryptoPP::StringSink( plaintext )
 				)
 			);
+<<<<<<< HEAD
 
 			bank_digest = plaintext.substr(plaintext.length() - CryptoPP::SHA256::DIGESTSIZE);
 			plaintext.resize(plaintext.length() - CryptoPP::SHA256::DIGESTSIZE);
@@ -372,6 +401,26 @@ printf("%d\n", pin);
 			{
 				puts(message);
 			}
+=======
+			
+			strncpy(packet, plaintext.c_str(), 80);
+			token = strtok(packet, " ");
+			char * message = token;
+			
+			//Verify timestamp
+			token = strtok(NULL, tok);
+			long int li;
+			li = atol(token);
+			time_t now = time(0);
+			if(now < li || now > li+20){ //timestamp must be within 20 secs of current time
+				message = "Error: bank timestamp invalid! closing connection.";
+				puts(message);
+				user = "";
+				break;
+			}
+			
+			puts(message);
+>>>>>>> 9b128147b0875935c1be7e54f4b91b1c76fa9012
 		}
 	}
 
