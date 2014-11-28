@@ -166,6 +166,8 @@ void* client_thread(void* arg)
 	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
 	byte atm_hash[CryptoPP::SHA256::DIGESTSIZE];
 
+	long int prevTimestamp = 0;
+
 	while(1)
 	{
 		//read the packet from the ATM
@@ -193,10 +195,20 @@ void* client_thread(void* arg)
 				long int timestamp = atol(token);
 				time_t now = time(0);
 			
-				if (now < timestamp || now > timestamp + 5)
+				if (now < timestamp || now > timestamp + 5 || timestamp <= prevTimestamp)
 				{
 					continue;
 				}
+				else
+				{
+					prevTimestamp = timestamp;
+				}
+
+    				itr = accounts.find(username);
+    				if(itr == accounts.end())
+				{
+					continue;
+    				}
 
 				// Generate session key and IV
 				rng.GenerateBlock(key, sizeof(key));
@@ -322,11 +334,12 @@ void* client_thread(void* arg)
 			}
 			else if (now < timestamp || now > timestamp+5)
 			{
-				strcpy(packet, "Denied_Bad_Timestamp");
+				strncpy(packet, "Invalid_Request", 1024);
 				length = strlen(packet);
 			}
 			else 
 			{
+			        prevTimestamp = timestamp;
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
 				pthread_mutex_lock(&(mutex_itr->second));
 
@@ -393,7 +406,14 @@ void* client_thread(void* arg)
 			strcat(packet, tmp);
 			length = strlen(packet);
 
-			//puts(packet);
+			// padding: extend packet to 1024 characters
+			//packet[length - 1] = ' ';
+			//for(unsigned int i = length; i < 1023; ++i){
+			//  packet[i] = 'A';
+			//}
+			//packet[1023] = '\0';
+			//length = 1024;
+
 			plaintext.assign(packet, length);
 
 			message_digest = "";
@@ -450,8 +470,6 @@ void* console_thread(void* arg)
 		printf("bank> ");
 		fgets(buf, 79, stdin);
 		buf[strlen(buf)-1] = '\0';	//trim off trailing newline
-		
-		
 
 		// Blank Input
 		if (!strcmp(buf, ""))
