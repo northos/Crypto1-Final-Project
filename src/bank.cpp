@@ -223,18 +223,18 @@ void* client_thread(void* arg)
     				}
 				
 				// DEBUG
-				puts("KEY:");
-				for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-				{
-					printf("%02x ", key[i]);
-				}
-				puts("");
-				puts("IV:");
-				for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-				{
-					printf("%02x ", iv[i]);
-				}
-				puts("");
+				//puts("KEY:");
+				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+				//{
+				//	printf("%02x ", key[i]);
+				//}
+				//puts("");
+				//puts("IV:");
+				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+				//{
+				//	printf("%02x ", iv[i]);
+				//}
+				//puts("");
 
 				memcpy(packet, key, 16);
 				memcpy(packet+16, iv, 16);
@@ -283,15 +283,16 @@ void* client_thread(void* arg)
 				);
 				
 				// DEBUG
-				puts("Encrypted");
-				for (int i = 0; i < ciphertext.length(); i++)
-				{
-					printf("%02x ", (unsigned char)ciphertext[i]);
-				}
-				puts("");
-				printf("%d\n", ciphertext.length());
+				//puts("Encrypted");
+				//for (int i = 0; i < ciphertext.length(); i++)
+				//{
+				//	printf("%02x ", (unsigned char)ciphertext[i]);
+				//}
+				//puts("");
+				//printf("%d\n", ciphertext.length());
 				
 				memcpy (packet, ciphertext.c_str(), ciphertext.length());
+				puts(packet);
 				length = ciphertext.length();
 			}
 
@@ -300,14 +301,14 @@ void* client_thread(void* arg)
 		else
 		{
 			// DEBUG
-			puts("CIPHERTEXT:");
-			for (int i = 0; i < length; i++)
-			{
-				printf("%02x ", (unsigned char)(packet[i]));
-			}
-			puts("");
-			printf("%d\n", length);
-			ciphertext = packet;
+			//puts("CIPHERTEXT:");
+			//for (int i = 0; i < length; i++)
+			//{
+			//	printf("%02x ", (unsigned char)(packet[i]));
+			//}
+			//puts("");
+			//printf("%d\n", length);
+			//ciphertext = packet;
 
 			ciphertext = "";
 			ciphertext.assign(packet, length);
@@ -322,21 +323,24 @@ void* client_thread(void* arg)
 			
 			strncpy (packet, plaintext.c_str(), 80);
 			length = strlen(packet);
+			puts(packet);
 
     		token = strtok(packet, tok);
 			username = token;
     		token = strtok(NULL, tok);
 
+			puts(username);
+			puts(user.c_str());
 			if (user != username)
 			{
 				strncpy(packet, "Invalid Request", 80);
 			}
 			else {
-				//printf("getting mutex of %s", username);
+				printf("getting mutex of %s\n", username);
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
-				pthread_mutex_lock(&(mutex_itr->second));
-				//printf("got mutex of %s", username);
-    		pthread_mutex_lock(&(mutexs.find(username)->second));
+				//pthread_mutex_lock(&(mutex_itr->second));
+				printf("got mutex of %s\n", username);
+    		//pthread_mutex_lock(&(mutexs.find(username)->second));
 			if(!strcmp(token, "balance")){
 				char* holder;
 				char balance[80];
@@ -379,17 +383,18 @@ void* client_thread(void* arg)
 					
 					transfer_itr = accounts.find(transfer_username);
 					if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
-						//printf("getting mutex of %s", transfer_username);
+						printf("getting mutex of %s\n", transfer_username);
 						std::map<const std::string , pthread_mutex_t>::iterator transfer_mutex_itr = mutexs.find(transfer_username);
-						pthread_mutex_lock(&(transfer_mutex_itr->second));
-						//printf("got mutex of %s", transfer_username);
+						//pthread_mutex_lock(&(transfer_mutex_itr->second));
+						printf("got mutex of %s\n", transfer_username);
 						itr->second-=amount;
 						transfer_itr->second+=amount;
 						strcpy(packet, "Confirmed");
 						length = strlen("Confirmed");
 						packet[length - 1] = '\0';
+						puts("asdf;lkajsdf;");
 						pthread_mutex_unlock(&(transfer_mutex_itr->second));
-						//printf("releasing mutex of %s", transfer_mutex_itr->first);
+						printf("releasing mutex of %s\n", transfer_mutex_itr->first.c_str());
 					}
 					else{
 						strcpy(packet, "Denied");
@@ -409,9 +414,10 @@ void* client_thread(void* arg)
 				}
 				
 				pthread_mutex_unlock(&(mutex_itr->second));
-				//printf("released mutex of %s", mutex_itr->first);
+				//printf("released mutex of %s\n", mutex_itr->first.c_str());
 			}
 			
+			puts(transfer_username);
 				transfer_itr = accounts.find(transfer_username);
     			if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
 					itr->second-=amount;
@@ -453,13 +459,13 @@ void* client_thread(void* arg)
 			length = ciphertext.length();
 
 			// DEBUG
-			puts("CIPHERTEXT:");
-			for (int i = 0; i < length; i++)
-			{
-				printf("%02x ", (unsigned char)(packet[i]));
-			}
-			puts("");
-			printf("%d\n", length);
+			//puts("CIPHERTEXT:");
+			//for (int i = 0; i < length; i++)
+			//{
+			//	printf("%02x ", (unsigned char)(packet[i]));
+			//}
+			//puts("");
+			//printf("%d\n", length);
 		}
 		
 		//send the new packet back to the client
@@ -528,13 +534,13 @@ void* console_thread(void* arg)
 			//get user
 			std::map<const std::string , int>::iterator itr = accounts.find(username);
 			if (itr == accounts.end()) {
-				printf("User: %s does not exist", username);
+				printf("User: %s does not exist\n", username);
 				continue;
 			}
-			//printf("getting mutex of %s", username);
+			printf("getting mutex of %s\n", username);
 			std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
-    		pthread_mutex_lock(&(mutex_itr->second));
-			//printf("got mutex of %s", username);
+    		//pthread_mutex_lock(&(mutex_itr->second));
+			printf("got mutex of %s\n", username);
 			if (amount < 0)
 			{
 				// Deposit is negative
@@ -552,13 +558,13 @@ void* console_thread(void* arg)
 				printf("Added $%d to user %s\n", amount, username);
 			}
 			pthread_mutex_unlock(&(mutex_itr->second));
-			//printf("releasing mutex of %s", mutex_itr->first);
+			printf("releasing mutex of %s\n", mutex_itr->first.c_str());
 		}
 		//balance
 		else if(!strcmp(token, "balance")){
 			std::map<const std::string , int>::iterator itr = accounts.find(username);
 			if (itr == accounts.end()) {
-				printf("User: %s does not exist", username);
+				printf("User: %s does not exist\n", username);
 				continue;
 			}
 			printf("Balance: %d\n", itr->second);
