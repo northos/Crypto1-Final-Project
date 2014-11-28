@@ -112,7 +112,7 @@ int main(int argc, char* argv[])
 	char buf[80];
 	std::string user = "";  // current logged-in user
 	char packet[1024];
-	int length = 1;
+	unsigned int length = 1;
 
 	while(1)
 	{
@@ -124,21 +124,22 @@ int main(int argc, char* argv[])
 			buf[strlen(buf)-1] = '\0';	//trim off trailing newline
 		}
 		
+		// Send username to bank so the bank knows what user is logged in
 		if (key_received && ! session_active)
 		{
-			strncpy(packet, user.c_str(), 1024);
+			strncpy(packet, user.c_str(), 1023);
 			length = strlen(packet);
 			session_active = true;
 		}
 		//input parsing
 		//logout
-		else if(!strcmp(buf, "logout")){
+		else if(!strncmp(buf, "logout", 79)){
 		  user = "";
 		  break;
 		}
 
 		//login [username]
-		else if(!strncmp(buf, "login", 5)){
+		else if(!strncmp(buf, "login", 79)){
 			// ignore if already logged in
 			if(user != ""){
 				printf("\n%s already logged in.\n", user.c_str());
@@ -147,9 +148,9 @@ int main(int argc, char* argv[])
                 	
                 	char username[80];
                 	char card_filename[80];
-                	strncpy(username, buf + 6, 74);
-                	strncpy(card_filename, buf + 6, 74);
-                	strncpy(card_filename + strlen(username), ".card\0", 6);
+                	strncpy(username, buf + 6, 79);
+                	strncpy(card_filename, buf + 6, 79);
+                	strncpy(card_filename + strlen(username), ".card", 79);
                 	
                 	FILE *card = fopen(card_filename, "r");
                 	
@@ -187,7 +188,7 @@ int main(int argc, char* argv[])
 				user = username;
 				printf("\nEstablishing session\n");
 
-				strncpy (packet, "open ", 1024);
+				strncpy (packet, "open ", 1023);
 				length = strlen(packet);
 			}
 			else
@@ -201,19 +202,19 @@ int main(int argc, char* argv[])
                   
 		// balance, withdraw, or transfer
 		// sends packet to bank with the username and command
-		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6))
+		else if(!strncmp(buf, "balance", 79) || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6))
 		{
 			if (session_active)
 			{
-				strcpy(packet, user.c_str());
-				strcat(packet, " ");
-				strcat(packet, buf);
+				strncpy(packet, user.c_str(), 1023);
+				strncat(packet, " ", 1023);
+				strncat(packet, buf, 1023);
 				length = user.length() + strlen(buf) + 1;
 			}
 			else
 			{
 				puts("Session not Initiated, please login");
-				strcpy(packet, " ");
+				strncpy(packet, " ", 1023);
 				length = 1;
 				continue;
 			}
@@ -228,8 +229,8 @@ int main(int argc, char* argv[])
 		time_t now = time(0);
 		char tmp[11];
 		sprintf(tmp, "%ld", (long) now);
-		strncat(packet, " ", 1024);
-		strncat(packet, tmp, 1024);
+		strncat(packet, " ", 1023);
+		strncat(packet, tmp, 1023);
 		length = strlen(packet);
 
 		if (session_active)
@@ -277,7 +278,7 @@ int main(int argc, char* argv[])
 			printf("fail to read packet length\n");
 			break;
 		}
-		if(length >= 1024)
+		if(length >= 1023)
 		{
 			printf("packet too long\n");
 			break;
@@ -381,7 +382,7 @@ int main(int argc, char* argv[])
 			}
 			else
 			{
-				strncpy(packet, plaintext.c_str(), 1024);
+				strncpy(packet, plaintext.c_str(), 1023);
 			}
 
 			token = strtok(packet, " ");
