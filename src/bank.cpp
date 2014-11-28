@@ -335,28 +335,20 @@ void* client_thread(void* arg)
 			{
 				strncpy(packet, "Invalid Request", 80);
 			}
-			else {
+			else 
+			{
 				printf("getting mutex of %s\n", username);
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
-				//pthread_mutex_lock(&(mutex_itr->second));
+				pthread_mutex_lock(&(mutex_itr->second));
 				printf("got mutex of %s\n", username);
-    		//pthread_mutex_lock(&(mutexs.find(username)->second));
-			if(!strcmp(token, "balance")){
-				char* holder;
-				char balance[80];
-				snprintf(balance, 80,"%d", accounts[username]);
-				strncpy(packet, balance, 80);
-				length = strlen(packet);
-				packet[length - 1] = '\0';
-			}
 			
-				if(!strcmp(token, "balance")){
+				if(!strcmp(token, "balance"))
+				{
 					char* holder;
 					char balance[80];
 					snprintf(balance, 80,"%d", accounts[username]);
 					strncpy(packet, balance, 80);
 					length = strlen(packet);
-					packet[length - 1] = '\0';
 				}
 				
 				else if(!strcmp(token, "withdraw")){
@@ -366,12 +358,10 @@ void* client_thread(void* arg)
 						itr->second-=amount;
 						strcpy(packet, "Confirmed");
 						length = strlen("Confirmed");
-						packet[length - 1] = '\0';
 					}
 					else{
 						strcpy(packet, "Denied");
 						length = strlen("Denied");
-						packet[length - 1] = '\0';
 					}
 				}
 				
@@ -385,21 +375,18 @@ void* client_thread(void* arg)
 					if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
 						printf("getting mutex of %s\n", transfer_username);
 						std::map<const std::string , pthread_mutex_t>::iterator transfer_mutex_itr = mutexs.find(transfer_username);
-						//pthread_mutex_lock(&(transfer_mutex_itr->second));
+						pthread_mutex_lock(&(transfer_mutex_itr->second));
 						printf("got mutex of %s\n", transfer_username);
 						itr->second-=amount;
 						transfer_itr->second+=amount;
 						strcpy(packet, "Confirmed");
 						length = strlen("Confirmed");
-						packet[length - 1] = '\0';
-						puts("asdf;lkajsdf;");
 						pthread_mutex_unlock(&(transfer_mutex_itr->second));
 						printf("releasing mutex of %s\n", transfer_mutex_itr->first.c_str());
 					}
 					else{
 						strcpy(packet, "Denied");
 						length = strlen("Denied");
-						packet[length - 1] = '\0';
 					}
 				}
 				else if(!strcmp(token, "logout")){
@@ -410,40 +397,11 @@ void* client_thread(void* arg)
 				else{
 					strcpy(packet, "Invalid Request");
 					length = strlen("Invalid Request");
-					packet[length - 1] = '\0';
 				}
 				
 				pthread_mutex_unlock(&(mutex_itr->second));
-				//printf("released mutex of %s\n", mutex_itr->first.c_str());
+				printf("released mutex of %s\n", mutex_itr->first.c_str());
 			}
-			
-			puts(transfer_username);
-				transfer_itr = accounts.find(transfer_username);
-    			if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
-					itr->second-=amount;
-					transfer_itr->second+=amount;
-					strcpy(packet, "Confirmed");
-					length = strlen("Confirmed") + 1;
-					packet[length - 1] = '\0';
-	    		}
-			else if(!strcmp(token, "logout")){
-				session_active = 0;
-				user = "";
-			}
-			
-			else{
-				strcpy(packet, "Invalid Request");
-				length = strlen("Invalid Request");
-				packet[length - 1] = '\0';
-			}
-			// padding: adds a space and then 'A's up to 1023 characters plus \0
-			//for(unsigned int i = length; i < 512; ++i){
-			//  packet[i] = 'A';
-			//}
-			//packet[511] = '\0';
-			//length = 512;
-
-			pthread_mutex_unlock(&(mutexs.find(username)->second));
 
 			plaintext = packet;
 			ciphertext = "";
@@ -533,14 +491,18 @@ void* console_thread(void* arg)
 			int amount = atoi(strtok(NULL, tok));
 			//get user
 			std::map<const std::string , int>::iterator itr = accounts.find(username);
-			if (itr == accounts.end()) {
+
+			if (itr == accounts.end())
+			{
 				printf("User: %s does not exist\n", username);
 				continue;
 			}
+
 			printf("getting mutex of %s\n", username);
 			std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
-    		//pthread_mutex_lock(&(mutex_itr->second));
+    			pthread_mutex_lock(&(mutex_itr->second));
 			printf("got mutex of %s\n", username);
+
 			if (amount < 0)
 			{
 				// Deposit is negative

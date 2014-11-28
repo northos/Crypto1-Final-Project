@@ -186,19 +186,13 @@ printf("%d\n", pin);
                   
 		// balance, withdraw, or transfer
 		// sends packet to bank with the username and command
-		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6)){
-		  strcpy(packet, user.c_str());
-		  strcat(packet, " ");
-		  strcat(packet, buf);
-		  length = user.length() + strlen(buf) + 2;
+		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6))
+		{
+			strcpy(packet, user.c_str());
+			strcat(packet, " ");
+			strcat(packet, buf);
+			length = user.length() + strlen(buf) + 2;
 		}
-
-		// padding: adds a space and then 'A's up to 1023 characters plus \0
-		//packet[length - 1] = ' ';
-		//for(unsigned int i = length; i < 512; ++i){
-		//  packet[i] = 'A';
-		//}
-		//packet[511] = '\0';
 
 		if (session_active)
 		{
@@ -216,13 +210,13 @@ printf("%d\n", pin);
 			length = ciphertext.length();
 
 			// DEBUG
-			for (int i = 0; i < length; i++)
-			{
-				printf("%02x ", (unsigned char)(packet[i]));
-			}
+			//for (int i = 0; i < length; i++)
+			//{
+			//	printf("%02x ", (unsigned char)(packet[i]));
+			//}
 
-			puts("");
-			printf("%d\n", length);
+			//puts("");
+			//printf("%d\n", length);
 		}
 
 
@@ -259,13 +253,13 @@ printf("%d\n", pin);
 		{
 
 			// DEBUG
-			puts("rsa ciphertext:");
-			for (int i = 0; i < length; i++)
-			{
-				printf("%02x ", (unsigned char)packet[i]);
-			}
-			puts("");
-			printf("%d\n", length);
+			//puts("rsa ciphertext:");
+			//for (int i = 0; i < length; i++)
+			//{
+			//	printf("%02x ", (unsigned char)packet[i]);
+			//}
+			//puts("");
+			//printf("%d\n", length);
 
 			ciphertext = "";
 			plaintext = "";
@@ -302,18 +296,18 @@ printf("%d\n", pin);
 			memcpy(iv, packet+16, 16);
 				
 			// DEBUG
-			puts("KEY:");
-			for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-			{
-				printf("%02x ", key[i]);
-			}
-			puts("");
-			puts("IV:");
-			for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-			{
-				printf("%02x ", iv[i]);
-			}
-			puts("");
+			//puts("KEY:");
+			//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+			//{
+			//	printf("%02x ", key[i]);
+			//}
+			//puts("");
+			//puts("IV:");
+			//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
+			//{
+			//	printf("%02x ", iv[i]);
+			//}
+			//puts("");
 
 			// Setup aes cipher for encryption and decryption
 			aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
@@ -327,12 +321,12 @@ printf("%d\n", pin);
 			plaintext = "";
 
 			// DEBUG
-			puts("CIPHERTEXT:");
-			for (int i = 0; i < length; i++)
-			{
-				printf("%02x ", (unsigned char)(packet[i]));
-			}
-			puts("");
+			//puts("CIPHERTEXT:");
+			//for (int i = 0; i < length; i++)
+			//{
+			//	printf("%02x ", (unsigned char)(packet[i]));
+			//}
+			//puts("");
 
 			// Decrypt Packet
 			CryptoPP::StringSource( ciphertext, true,
