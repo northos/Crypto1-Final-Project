@@ -215,8 +215,7 @@ void* client_thread(void* arg)
     				itr = accounts.find(username);
     				if(itr == accounts.end())
 				{
-    					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request");
+					continue;
     				}
 
 				// Generate session key and IV
@@ -323,7 +322,7 @@ void* client_thread(void* arg)
 
 			if (user != username)
 			{
-				strncpy(packet, "Invalid Request", 80);
+				strncpy(packet, "Invalid_Request", 80);
 			}
 			else if (now < timestamp || now > timestamp+10 || timestamp <= prevTimestamp)
 			{
@@ -384,8 +383,8 @@ void* client_thread(void* arg)
 				}
 				
 				else{
-					strcpy(packet, "Invalid Request");
-					length = strlen("Invalid Request");
+					strcpy(packet, "Invalid_Request");
+					length = strlen("Invalid_Request");
 				}
 
 			
