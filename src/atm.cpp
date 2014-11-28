@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
                 	fread(&pin, sizeof(unsigned int), 1, card);
                 	fclose(card);
                 	
-			unsigned char valid_pin = 0;
+			bool valid_pin = false;
 			
 			for (int i = 3; i > 0; --i)
 			{
@@ -175,10 +175,11 @@ int main(int argc, char* argv[])
 				
 				if (pin_entry == pin)
 				{
-					valid_pin = 1;
+					valid_pin = true;
 					break;
 				}
 				printf("\nIncorrect pin, please try again. (%d tries remaining)", i-1);
+				sleep(2); // Slow entry to prevent brute forcing
 			}
 			
 			if (valid_pin)

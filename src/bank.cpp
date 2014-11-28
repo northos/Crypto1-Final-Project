@@ -208,6 +208,7 @@ void* client_thread(void* arg)
 				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
 				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
 
+				// Copy key and IV into packet
 				memcpy(packet, key, 16);
 				memcpy(packet+16, iv, 16);
 				memcpy(packet+32, "\0", 1);
@@ -221,7 +222,6 @@ void* client_thread(void* arg)
 				strcat(packet, tmp);
 				length += 1 + strlen(tmp);
 				
-				printf("%d\n", now);
 				// Sign message with bank's private key
 				plaintext.assign(packet, length);
 				signature = "";
