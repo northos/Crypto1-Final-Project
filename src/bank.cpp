@@ -102,13 +102,14 @@ void* client_thread(void* arg)
 	int length;
 	char packet[1024];
 	const char *tok = " ";
-	char* token;
-	char* username;
+	char *token;
+	char *username;
+	char *command;
 	std::string user = "";
 	int amount;
 	std::map<const std::string , int>::iterator itr;
 	std::map<const std::string , int>::iterator transfer_itr;
-	std::string plaintext, ciphertext, signature;
+	std::string plaintext, ciphertext, signature, message_digest, atm_digest;
 	char* transfer_username;
 	char session_active = 0;
 
@@ -118,17 +119,6 @@ void* client_thread(void* arg)
 
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Decryption aes_decrypt;
 	CryptoPP::CBC_Mode<CryptoPP::AES>::Encryption aes_encrypt;
-
-	//CryptoPP::InvertibleRSAFunction params;
-	//params.GenerateRandomWithKeySize(rng, 2800);
-	//CryptoPP::Integer bank_modulus = params.GetModulus();
-	//CryptoPP::Integer bank_priv_key = params.GetPrivateExponent();
-	//CryptoPP::Integer bank_pub_key = params.GetPublicExponent();
-
-	//std::cout << std::endl;
-	//std::cout << std::hex << bank_modulus << std::endl << std::endl;
-	//std::cout << std::hex << bank_priv_key << std::endl << std::endl;
-	//std::cout << std::hex << bank_pub_key << std::endl << std::endl;
 
 	CryptoPP::Integer bank_modulus( "0xbbed02f6dbb34c5aa313b9d6e54b3e862e0bd1d8d0d9b608cff72b5439ba40b0\
 					   4c1aab93a17e176cd56ba2626f25f25160f51940c9299347f1adffb22192e20a\
@@ -170,8 +160,10 @@ void* client_thread(void* arg)
 	bankpubkey.Initialize(bank_modulus, bank_pub_key);
 	pubkey.Initialize(atm_modulus, atm_pub_key);
 	CryptoPP::RSAES_OAEP_SHA_Encryptor rsa_encrypt (pubkey);
-	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA1>::Signer rsa_sha_sign (privkey);
-	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA1>::Verifier rsa_sha_verify (bankpubkey);
+	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA256>::Signer rsa_sha_sign (privkey);
+	CryptoPP::SHA256 hash;
+	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
+	byte atm_hash[CryptoPP::SHA256::DIGESTSIZE];
 
 	while(1)
 	{
@@ -192,20 +184,10 @@ void* client_thread(void* arg)
 
 		if (!session_active)
 		{
-			puts(packet);
-
     			token = strtok(packet, tok);
 
 			if(!strcmp(token, "open"))
 			{
-				// Generate session key and IV
-				rng.GenerateBlock(key, sizeof(key));
-				rng.GenerateBlock(iv, sizeof(iv));
-
-				// Setup aes cipher for encryption and decryption
-				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
-				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
-
 				// Verify username exists
     				token = strtok(NULL, tok);
 				
@@ -215,84 +197,57 @@ void* client_thread(void* arg)
 				}
 				username = token;
 				user = token;
+			
+				token = strtok(NULL, tok);
+				long int timestamp = atol(token);
+				time_t now = time(0);
+			
+				if (now < timestamp || now > timestamp + 20)
+				{
+					continue;
+				}
 
     				itr = accounts.find(username);
-    				if(itr == accounts.end()){
+    				if(itr == accounts.end())
+				{
     					strcpy(packet, "Invalid Request");
 					length = strlen("Invalid Request");
     				}
-				
-				// DEBUG
-				//puts("KEY:");
-				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-				//{
-				//	printf("%02x ", key[i]);
-				//}
-				//puts("");
-				//puts("IV:");
-				//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-				//{
-				//	printf("%02x ", iv[i]);
-				//}
-				//puts("");
+
+				// Generate session key and IV
+				rng.GenerateBlock(key, sizeof(key));
+				rng.GenerateBlock(iv, sizeof(iv));
+
+				// Setup aes cipher for encryption and decryption
+				aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
+				aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
 
 				memcpy(packet, key, 16);
 				memcpy(packet+16, iv, 16);
 				memcpy(packet+32, "\0", 1);
 				length = 32;
 				
+				// Sign message with bank's private key
 				plaintext.assign(packet, length);
+				signature = "";
 				CryptoPP::StringSource ss1(plaintext, true,
 					new CryptoPP::SignerFilter(rng, rsa_sha_sign,
 						new CryptoPP::StringSink(signature)
 					)
 				);
 
-				//puts("Signature");
-				//for (int i = 0; i < signature.length(); i++)
-				//{
-				//	printf("%02x ", (unsigned char)signature[i]);
-				//}
-				//puts("");
-				//printf("%d\n", signature.length());
-
-				//puts("Message");
-				//for (int i = 0; i < plaintext.length(); i++)
-				//{
-				//	printf("%02x ", (unsigned char)plaintext[i]);
-				//}
-				//puts("");
-				//printf("%d\n", plaintext.length());
-
-				//puts("Signature");
-				//for (int i = 0; i < recovered.length(); i++)
-				//{
-				//	printf("%02x ", (unsigned char)recovered[i]);
-				//}
-				//printf("%d\n", recovered.length());
-				//puts("");
-
-				ciphertext = "";
 				plaintext.assign(packet, length);
 				plaintext.append(signature);
 
+				// Encrypt message with atm's public key
+				ciphertext = "";
 				CryptoPP::StringSource(plaintext, true,
 					new CryptoPP::PK_EncryptorFilter(rng, rsa_encrypt,
 						new CryptoPP::StringSink(ciphertext)
 					)
 				);
 				
-				// DEBUG
-				//puts("Encrypted");
-				//for (int i = 0; i < ciphertext.length(); i++)
-				//{
-				//	printf("%02x ", (unsigned char)ciphertext[i]);
-				//}
-				//puts("");
-				//printf("%d\n", ciphertext.length());
-				
 				memcpy (packet, ciphertext.c_str(), ciphertext.length());
-				puts(packet);
 				length = ciphertext.length();
 			}
 
@@ -300,49 +255,75 @@ void* client_thread(void* arg)
 		}
 		else
 		{
-			// DEBUG
-			//puts("CIPHERTEXT:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
-			//puts("");
-			//printf("%d\n", length);
-			//ciphertext = packet;
-
-			ciphertext = "";
 			ciphertext.assign(packet, length);
-			plaintext = "";
 
 			// Decrypt packet
+			plaintext = "";
 			CryptoPP::StringSource( ciphertext, true,
 				new CryptoPP::StreamTransformationFilter (aes_decrypt,
 					new CryptoPP::StringSink( plaintext )
 				)
 			);
+
+			atm_digest = plaintext.substr(plaintext.length() - CryptoPP::SHA256::DIGESTSIZE);
+			plaintext.resize(plaintext.length() - CryptoPP::SHA256::DIGESTSIZE);
+
+			// Calculate hash of message
+			message_digest = "";
+			CryptoPP::StringSource(plaintext, true,
+				new CryptoPP::HashFilter(hash,
+					new CryptoPP::StringSink(message_digest)
+				)
+			);
+
+			// Compare calculated hash to hash sent by bank
+			if (message_digest != atm_digest)
+			{
+				puts("Hash does not match.");
+				puts("Killing session.");
+				session_active = 0;
+				break;
+			}
+			else
+			{
+				strncpy(packet, plaintext.c_str(), 1024);
+			}
 			
-			strncpy (packet, plaintext.c_str(), 80);
-			length = strlen(packet);
-			puts(packet);
+			char *message[10];
+			int num_args;
+    			token = strtok(packet, tok);
 
-    		token = strtok(packet, tok);
-			username = token;
-    		token = strtok(NULL, tok);
+			//Read all arguments
+			for (num_args = 0; num_args < 10; ++num_args)
+			{
+				if (token == NULL) break;
+				
+				message[num_args] = token;
+				token = strtok(NULL, tok);
+			}
+			num_args;
+			
+			username = message[0];
+			command = message[1];
+			long int timestamp = atol(message[num_args-1]);
+			time_t now = time(0);
 
-			puts(username);
-			puts(user.c_str());
 			if (user != username)
 			{
 				strncpy(packet, "Invalid Request", 80);
 			}
+			else if (now < timestamp || now > timestamp+10)
+			{
+				puts("bad timestamp");
+				strcpy(packet, "Denied_Bad_Timestamp");
+				length = strlen(packet);
+			}
 			else 
 			{
-				printf("getting mutex of %s\n", username);
 				std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
 				pthread_mutex_lock(&(mutex_itr->second));
-				printf("got mutex of %s\n", username);
-			
-				if(!strcmp(token, "balance"))
+
+				if(!strcmp(command, "balance"))
 				{
 					char* holder;
 					char balance[80];
@@ -351,9 +332,8 @@ void* client_thread(void* arg)
 					length = strlen(packet);
 				}
 				
-				else if(!strcmp(token, "withdraw")){
-					token = strtok(NULL, tok);
-					amount = atoi(token);
+				else if(!strcmp(command, "withdraw") && num_args == 4){
+					amount = atoi(message[2]);
 					if(amount > 0 && itr->second >=amount){
 						itr->second-=amount;
 						strcpy(packet, "Confirmed");
@@ -365,31 +345,26 @@ void* client_thread(void* arg)
 					}
 				}
 				
-				else if(!strcmp(token, "transfer")){
-					token = strtok(NULL, tok);
-					amount = atoi(token);
-					token = strtok(NULL, tok);
-					transfer_username = token;
+				else if(!strcmp(command, "transfer") && num_args == 5){
+					amount = atoi(message[2]);
+					transfer_username = message[3];
 					
 					transfer_itr = accounts.find(transfer_username);
 					if(transfer_itr != accounts.end() && transfer_itr != itr && amount > 0 && itr->second >=amount){
-						printf("getting mutex of %s\n", transfer_username);
 						std::map<const std::string , pthread_mutex_t>::iterator transfer_mutex_itr = mutexs.find(transfer_username);
 						pthread_mutex_lock(&(transfer_mutex_itr->second));
-						printf("got mutex of %s\n", transfer_username);
 						itr->second-=amount;
 						transfer_itr->second+=amount;
 						strcpy(packet, "Confirmed");
 						length = strlen("Confirmed");
 						pthread_mutex_unlock(&(transfer_mutex_itr->second));
-						printf("releasing mutex of %s\n", transfer_mutex_itr->first.c_str());
 					}
 					else{
 						strcpy(packet, "Denied");
 						length = strlen("Denied");
 					}
 				}
-				else if(!strcmp(token, "logout")){
+				else if(!strcmp(command, "logout")){
 					session_active = 0;
 					user = "";
 				}
@@ -398,42 +373,42 @@ void* client_thread(void* arg)
 					strcpy(packet, "Invalid Request");
 					length = strlen("Invalid Request");
 				}
-				
+
+			
 				pthread_mutex_unlock(&(mutex_itr->second));
-				printf("released mutex of %s\n", mutex_itr->first.c_str());
 			}
 
-			plaintext = packet;
-			ciphertext = "";
+			// Attach timestamp
+			now = time(0);
+			char tmp[11];
+			sprintf(tmp, "%ld", (long) now);
+			strcat(packet, " ");
+			strcat(packet, tmp);
+			length = strlen(packet);
+
+			plaintext.assign(packet, length);
+
+			message_digest = "";
+			CryptoPP::StringSource(plaintext, true,
+				new CryptoPP::HashFilter(hash,
+					new CryptoPP::StringSink(message_digest)
+				)
+			);
+
+			plaintext += message_digest;
 
 			// Encrypt packet
+			ciphertext = "";
 			CryptoPP::StringSource( plaintext, true,
 				new CryptoPP::StreamTransformationFilter (aes_encrypt,
 					new CryptoPP::StringSink( ciphertext )
 				)
 			);
-			
-			memcpy (packet, ciphertext.c_str(), ciphertext.length());
-			length = ciphertext.length();
 
-			// DEBUG
-			//puts("CIPHERTEXT:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
-			//puts("");
-			//printf("%d\n", length);
+			memcpy(packet, ciphertext.c_str(), ciphertext.length());
+			length = ciphertext.length();
 		}
 		
-		//send the new packet back to the client
-		/*TODO: need padding on packet so attacker cant see length
-		otherwise he can easily know magnitude of balance, or whether request was confimed or denied. */
-		/*also, maybe confimed/denied messages should be more complex, to avoid being easily faked/swapped.
-		right now, any request by any user will return identical confimed/denied messages, easy to send 
-		wrong message back to atm to ex. withdraw nmoney when you dont actually have enough.*/
-		
-	
 		if(sizeof(int) != send(csock, (void *)&length, sizeof(int), 0))
 		{
 			printf("[bank] fail to send packet length\n");
@@ -444,11 +419,6 @@ void* client_thread(void* arg)
 			printf("[bank] fail to send packet\n");
 			break;
 		}
-		
-		/*an invalid request shouldnt be possible, and will close the connection. 
-		However, it needs to first communicate with the atm that the request was invalid,
-		otherwise the atm waits forever for a response from the bank. Here, after sending
-		the message, the connection is terminated*/
 		if(!strncmp(packet, "Invalid Request", 15)){
 			printf("client ID #%d sent invalid request.\n", csock);
 			break;
@@ -498,10 +468,8 @@ void* console_thread(void* arg)
 				continue;
 			}
 
-			printf("getting mutex of %s\n", username);
 			std::map<const std::string , pthread_mutex_t>::iterator mutex_itr = mutexs.find(username);
     			pthread_mutex_lock(&(mutex_itr->second));
-			printf("got mutex of %s\n", username);
 
 			if (amount < 0)
 			{
@@ -517,10 +485,8 @@ void* console_thread(void* arg)
 			{
 				//add balance
 				itr->second += amount;
-				printf("Added $%d to user %s\n", amount, username);
 			}
 			pthread_mutex_unlock(&(mutex_itr->second));
-			printf("releasing mutex of %s\n", mutex_itr->first.c_str());
 		}
 		//balance
 		else if(!strcmp(token, "balance")){

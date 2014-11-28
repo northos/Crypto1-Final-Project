@@ -15,7 +15,9 @@
 #include "cryptopp/osrng.h"
 #include "cryptopp/ccm.h"
 #include "cryptopp/rsa.h"
+#include "cryptopp/sha.h"
 #include "cryptopp/pssr.h"
+#include <ctime>
 
 int main(int argc, char* argv[])
 {
@@ -47,7 +49,10 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 
-	std::string plaintext, ciphertext, signature;
+	char *token;
+	const char *tok = " ";
+
+	std::string plaintext, ciphertext, signature, message_digest, bank_digest;
 
 	CryptoPP::AutoSeededRandomPool rng;
 
@@ -96,8 +101,11 @@ int main(int argc, char* argv[])
 	privkey.Initialize(atm_modulus, atm_pub_key, atm_priv_key);
 	pubkey.Initialize(bank_modulus, bank_pub_key);
 	//CryptoPP::RSAES_OAEP_SHA_Encryptor rsa_encrypt (pubkey);
-	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA1>::Verifier rsa_sha_verify (pubkey);
+	CryptoPP::RSASS<CryptoPP::PSS,CryptoPP::SHA256>::Verifier rsa_sha_verify (pubkey);
 	CryptoPP::RSAES_OAEP_SHA_Decryptor rsa_decrypt (privkey);
+	CryptoPP::SHA256 hash;
+	byte mdigest[CryptoPP::SHA256::DIGESTSIZE];
+	byte bank_hash[CryptoPP::SHA256::DIGESTSIZE];
 
 	//input loop
 	unsigned char session_active = 0;
@@ -188,18 +196,44 @@ printf("%d\n", pin);
 		// sends packet to bank with the username and command
 		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6))
 		{
-			strcpy(packet, user.c_str());
-			strcat(packet, " ");
-			strcat(packet, buf);
-			length = user.length() + strlen(buf) + 2;
+			if (session_active)
+			{
+				strcpy(packet, user.c_str());
+				strcat(packet, " ");
+				strcat(packet, buf);
+				length = user.length() + strlen(buf) + 1;
+			}
+			else
+			{
+				strcpy(packet, " ");
+				length = 2;
+			}
 		}
+
+		// Attach timestamp
+		time_t now = time(0);
+		char tmp[11];
+		sprintf(tmp, "%ld", (long) now);
+		strcat(packet, " ");
+		strcat(packet, tmp);
+		length = strlen(packet);
 
 		if (session_active)
 		{
 			plaintext.assign(packet, length);
-			ciphertext = "";
+
+			// Calculate SHA256 hash of message
+			message_digest = "";
+			CryptoPP::StringSource(plaintext, true,
+				new CryptoPP::HashFilter(hash,
+					new CryptoPP::StringSink(message_digest)
+				)
+			);
+
+			plaintext += message_digest;
 
 			// Encrypt Packet
+			ciphertext = "";
 			CryptoPP::StringSource( plaintext, true,
 				new CryptoPP::StreamTransformationFilter (aes_encrypt,
 					new CryptoPP::StringSink( ciphertext )
@@ -208,15 +242,6 @@ printf("%d\n", pin);
 
 			memcpy(packet, ciphertext.c_str(), ciphertext.length());
 			length = ciphertext.length();
-
-			// DEBUG
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
-
-			//puts("");
-			//printf("%d\n", length);
 		}
 
 
@@ -251,29 +276,21 @@ printf("%d\n", pin);
 
 		if (!session_active)
 		{
-
-			// DEBUG
-			//puts("rsa ciphertext:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)packet[i]);
-			//}
-			//puts("");
-			//printf("%d\n", length);
-
 			ciphertext = "";
-			plaintext = "";
-			signature = "";
 			ciphertext.assign(packet, length);
 
+			// Decrypt packet
+			signature = "";
 			CryptoPP::StringSource(ciphertext, true,
 				new CryptoPP::PK_DecryptorFilter(rng, rsa_decrypt,
 					new CryptoPP::StringSink(signature)
 				)
 			);
 
+			// Check digital signature to verify that we are communicatin with the bank
 			try
 			{
+				plaintext = "";
 				CryptoPP::StringSource(signature, true,
 					new CryptoPP::SignatureVerificationFilter(
 						rsa_sha_verify,
@@ -295,20 +312,6 @@ printf("%d\n", pin);
 			memcpy(key, packet, 16);
 			memcpy(iv, packet+16, 16);
 				
-			// DEBUG
-			//puts("KEY:");
-			//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-			//{
-			//	printf("%02x ", key[i]);
-			//}
-			//puts("");
-			//puts("IV:");
-			//for (int i = 0; i < CryptoPP::AES::DEFAULT_KEYLENGTH; i++)
-			//{
-			//	printf("%02x ", iv[i]);
-			//}
-			//puts("");
-
 			// Setup aes cipher for encryption and decryption
 			aes_encrypt.SetKeyWithIV(key, sizeof(key), iv);
 			aes_decrypt.SetKeyWithIV(key, sizeof(key), iv);
@@ -318,25 +321,57 @@ printf("%d\n", pin);
 		else
 		{
 			ciphertext.assign(packet, length);
-			plaintext = "";
-
-			// DEBUG
-			//puts("CIPHERTEXT:");
-			//for (int i = 0; i < length; i++)
-			//{
-			//	printf("%02x ", (unsigned char)(packet[i]));
-			//}
-			//puts("");
 
 			// Decrypt Packet
+			plaintext = "";
 			CryptoPP::StringSource( ciphertext, true,
 				new CryptoPP::StreamTransformationFilter (aes_decrypt,
 					new CryptoPP::StringSink( plaintext )
 				)
 			);
-			
-			strncpy(packet, plaintext.c_str(), 80);
-			puts(packet);
+
+			bank_digest = plaintext.substr(plaintext.length() - CryptoPP::SHA256::DIGESTSIZE);
+			plaintext.resize(plaintext.length() - CryptoPP::SHA256::DIGESTSIZE);
+
+			// Calculate hash of message
+			message_digest = "";
+			CryptoPP::StringSource(plaintext, true,
+				new CryptoPP::HashFilter(hash,
+					new CryptoPP::StringSink(message_digest)
+				)
+			);
+
+			// Compare calculated hash to hash sent by bank
+			if (message_digest != bank_digest)
+			{
+				puts("Hash does not match.");
+				puts("Killing session.");
+				session_active = 0;
+				break;
+			}
+			else
+			{
+				strncpy(packet, plaintext.c_str(), 1024);
+			}
+
+			token = strtok(packet, " ");
+			char * message = token;
+		
+			// Verify timestamp
+			token = strtok(NULL, tok);
+			long int li = atol(token);
+			time_t now = time(0);
+			if (now < li || now > li + 20)
+			{
+				puts("Error: bank timestamp invalid!");
+				puts("Closing connection.");
+				user = "";
+				break;
+			}
+			else
+			{
+				puts(message);
+			}
 		}
 	}
 
