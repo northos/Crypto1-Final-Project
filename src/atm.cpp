@@ -16,6 +16,7 @@
 #include "cryptopp/ccm.h"
 #include "cryptopp/rsa.h"
 #include "cryptopp/pssr.h"
+#include <ctime>
 
 int main(int argc, char* argv[])
 {
@@ -187,11 +188,25 @@ printf("%d\n", pin);
 		// balance, withdraw, or transfer
 		// sends packet to bank with the username and command
 		else if(!strcmp(buf, "balance") || !strncmp(buf, "withdraw", 8) || !strncmp(buf, "transfer", 8) || !strncmp(buf, "logout", 6)){
-		  strcpy(packet, user.c_str());
-		  strcat(packet, " ");
-		  strcat(packet, buf);
-		  length = user.length() + strlen(buf) + 2;
+			if (session_active){
+		  		strcpy(packet, user.c_str());
+		  		strcat(packet, " ");
+				strcat(packet, buf);
+				length = user.length() + strlen(buf) + 2;
+			}
+			else{
+				strcpy(packet, " ");
+				length = 2;
+			}
 		}
+
+		//attach timestamp
+		time_t now = time(0)
+		char tmp[11];
+		sprintf(tmp, "%ld", (long) now);
+		strcat (packet, " ");
+		strcat (packet, tmp);
+		length = strlen(packet);
 
 		// padding: adds a space and then 'A's up to 1023 characters plus \0
 		//packet[length - 1] = ' ';
@@ -342,7 +357,22 @@ printf("%d\n", pin);
 			);
 			
 			strncpy(packet, plaintext.c_str(), 80);
-			puts(packet);
+			token = strtok(packet, " ");
+			char * message = token;
+			
+			//Verify timestamp
+			token = strtok(NULL, tok);
+			long int li;
+			li = atol(token);
+			time_t now = time(0);
+			if(now < li || now > li+20){ //timestamp must be within 20 secs of current time
+				message = "Error: bank timestamp invalid! closing connection.";
+				puts(message);
+				user = "";
+				break;
+			}
+			
+			puts(message);
 		}
 	}
 
