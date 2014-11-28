@@ -1,6 +1,6 @@
 CC=g++
 OUTDIR=../bin/
-CFLAGS=-lpthread -lcryptopp 
+CFLAGS=-lpthread -lcryptopp -static 
 
 all: bank atm proxy
 	cp Alice.card $(OUTDIR)
@@ -8,13 +8,13 @@ all: bank atm proxy
 	cp Eve.card $(OUTDIR)
 
 bank: bank.cpp
-	$(CC) $(CFLAGS) bank.cpp -o $(OUTDIR)bank
+	$(CC) bank.cpp -o $(OUTDIR)bank $(CFLAGS) 
 
 atm: atm.cpp
-	$(CC) $(CFLAGS) atm.cpp -o $(OUTDIR)atm
+	$(CC) atm.cpp -o $(OUTDIR)atm $(CFLAGS)
 
 proxy: proxy.cpp
-	$(CC) $(CFLAGS) proxy.cpp -o $(OUTDIR)proxy
+	$(CC) proxy.cpp -o $(OUTDIR)proxy $(CFLAGS)
 
 clean:
 	rm ../bin/*
